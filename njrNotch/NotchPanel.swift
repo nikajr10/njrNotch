@@ -9,6 +9,8 @@ import SwiftUI
 /// Borderless, transparent, always-on-top panel that hosts the notch view.
 /// It is sized to the expanded notch; transparent pixels let clicks pass through.
 final class NotchPanel: NSPanel {
+    private let spotify = SpotifyController()
+
     init() {
         super.init(
             contentRect: .zero,
@@ -31,7 +33,7 @@ final class NotchPanel: NSPanel {
             width: max(NotchView.expandedSize.width, notch.width),
             height: max(NotchView.expandedSize.height, notch.height)
         )
-        contentView = NSHostingView(rootView: NotchView(notchSize: notch))
+        contentView = NSHostingView(rootView: NotchView(notchSize: notch, spotify: spotify))
         setFrame(
             NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.maxY - size.height,
                    width: size.width, height: size.height),
