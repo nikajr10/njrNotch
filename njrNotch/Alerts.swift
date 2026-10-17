@@ -6,7 +6,7 @@
 import AppKit
 import UserNotifications
 
-/// Sounds and optional macOS notifications for agent events.
+/// Sounds and optional macOS notifications for agent events. Spotify never plays a sound.
 enum Alerts {
     enum Kind { case done, permission }
 
@@ -21,7 +21,12 @@ enum Alerts {
         if kind == .done ? prefs.doneSoundOn : prefs.permissionSoundOn {
             play(kind)
         }
-        if prefs.notificationsOn && !NSApp.isActive {
+        notify(title: title, body: body)
+    }
+
+    /// A macOS notification, when turned on in Settings → Notifications (off by default).
+    static func notify(title: String, body: String) {
+        if AppSettings.shared.prefs.notificationsOn {
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body

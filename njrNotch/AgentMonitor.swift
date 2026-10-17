@@ -24,17 +24,20 @@ final class AgentMonitor {
     @ObservationIgnored private let adapters: [AgentAdapter] = [ClaudeCodeAdapter()]
     @ObservationIgnored private let listener = AgentListener()
     @ObservationIgnored private var lastUsageRefresh = Date.distantPast
+    @ObservationIgnored private var loggedEvents = Set<String>()
 
     private init() {
         #if DEBUG
         AgentListener.selfCheck()
         ClaudeCodeAdapter.selfCheck()
+        TokenUsage.selfCheck()
         #endif
         listener.start { [weak self] request, reply in
             guard let payload = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] else {
                 reply.send()
                 return
             }
+            self?.logOnce(payload, raw: request.body)
             self?.receive(path: request.path, payload: payload, reply: reply)
         }
         refreshUsage(sessionID: nil, force: true)
@@ -59,6 +62,13 @@ final class AgentMonitor {
     }
 
     // MARK: - Events
+
+    /// The raw JSON of each hook event, the first time it arrives, to see which fields exist.
+    private func logOnce(_ payload: [String: Any], raw: Data) {
+        let name = payload["hook_event_name"] as? String ?? "?"
+        guard loggedEvents.insert(name).inserted else { return }
+        print("njrNotch: \(name) hook JSON (logged once): \(String(decoding: raw, as: UTF8.self))")
+    }
 
     private func receive(path: String, payload: [String: Any], reply: HookReply) {
         guard let adapter = adapters.first(where: { $0.path == path }), adapter.isEnabled,
@@ -87,7 +97,10 @@ final class AgentMonitor {
         // ponytail: sessions killed without SessionEnd linger until this 12h sweep.
         sessions.removeAll { $0.updatedAt.timeIntervalSinceNow < -12 * 3600 }
         if case .sessionEnded = event.kind {
+            let project = sessions.first { $0.id == id }?.project ?? event.project ?? ""
             sessions.removeAll { $0.id == id }
+            Alerts.notify(title: "\(agentName) session ended", body: project)
+            PopNotifier.shared.post(PopNote(kind: .sessionEnded, title: "Session ended", detail: project))
             return
         }
 
@@ -100,12 +113,11 @@ final class AgentMonitor {
         switch event.kind {
         case .sessionStarted:
             session.status = .idle
+            session.startedAt = session.startedAt ?? .now // compacting fires SessionStart too
         case .promptSubmitted(let prompt):
             session.status = .working
             session.task = Self.shorten(prompt)
             session.activity = "Thinking…"
-            session.startedAt = .now
-            session.finishedAt = nil
             session.permissionRequest = nil
         case .toolStarted(let activity):
             session.activity = activity
@@ -116,14 +128,17 @@ final class AgentMonitor {
             session.status = .needsPermission
             session.permissionRequest = request
             Alerts.fire(.permission, title: "\(agentName) needs permission · \(session.project)", body: request)
+            PopNotifier.shared.post(PopNote(kind: .permission, title: "Needs permission · \(session.project)",
+                                            detail: request))
         case .finished(let summary):
             session.status = .done
-            session.finishedAt = .now
             session.activity = nil
             session.permissionRequest = nil
             session.lastResult = summary.map(Self.shorten)
             finishCount += 1
             Alerts.fire(.done, title: "\(agentName) finished · \(session.project)", body: session.lastResult ?? "Task finished")
+            PopNotifier.shared.post(PopNote(kind: .done, title: "Done · \(session.project)",
+                                            detail: session.lastResult ?? "Task finished"))
         case .sessionEnded:
             break
         }
@@ -164,19 +179,23 @@ final class AgentMonitor {
 
     // MARK: - Tokens
 
-    /// Transcripts can be many MB, so totals are computed off the main thread, at most every 10s mid-task.
+    /// Transcripts can be many MB, so they are read off the main thread, at most every 10s mid-task.
     private func refreshUsage(sessionID: String?, force: Bool) {
-        guard AppSettings.shared.prefs.showTokens,
-              force || Date().timeIntervalSince(lastUsageRefresh) > 10 else { return }
+        guard force || Date().timeIntervalSince(lastUsageRefresh) > 10 else { return }
         lastUsageRefresh = .now
         let transcript = sessions.first { $0.id == sessionID }?.transcriptPath
         Task.detached(priority: .utility) {
-            let sessionCounts = transcript.map { TokenUsage.counts(in: URL(fileURLWithPath: $0)) }
+            let info = transcript.map { TokenUsage.session(in: URL(fileURLWithPath: $0)) }
             let todayCounts = TokenUsage.today()
             await MainActor.run {
                 self.today = todayCounts
-                if let sessionID, let sessionCounts {
-                    self.update(sessionID) { $0.tokens = sessionCounts }
+                if let sessionID, let info {
+                    self.update(sessionID) {
+                        $0.tokens = info.counts
+                        $0.model = info.model ?? $0.model
+                        $0.effort = info.effort ?? $0.effort
+                        $0.startedAt = $0.startedAt ?? info.started
+                    }
                 }
             }
         }

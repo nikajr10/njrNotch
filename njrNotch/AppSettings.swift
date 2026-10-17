@@ -35,15 +35,25 @@ struct Preferences: Codable, Equatable {
     // Claude Code
     var claudeCodeEnabled = true
     var answerPermissionsInNotch = true
-    var showClosedIndicator = true
-    var showFiveHourLimit = true
-    var showWeeklyLimit = true
-    var showFableLimit = true
     var showTask = true
     var showActivity = true
     var showElapsed = true
     var showLastResult = true
     var showTokens = true
+    // Closed notch live activity
+    var showClosedIndicator = true
+    var closedSource = ClosedSource.auto
+    var closedShowsArt = true
+    var closedShowsEqualizer = true
+    // Pop-down notifications
+    var popOn = true
+    var popSong = true
+    var popDone = true
+    var popPermission = true
+    var popSessionEnded = true
+    var popDuration = 4.0              // seconds on screen
+    var popAnimation = 0.4             // spring response, seconds
+    var popKeepWhileHovering = true
     // Sounds: a system sound name, or an absolute path to the user's own file
     var doneSoundOn = true
     var doneSound = "Glass"
@@ -55,6 +65,11 @@ struct Preferences: Codable, Equatable {
 
 enum NotchBackground: String, Codable, CaseIterable {
     case black, glass, custom
+}
+
+/// What the closed notch shows when Spotify and Claude Code are both active.
+enum ClosedSource: String, Codable, CaseIterable {
+    case spotify, claudeCode, auto
 }
 
 /// Observable holder that writes `Preferences` to UserDefaults on every change.

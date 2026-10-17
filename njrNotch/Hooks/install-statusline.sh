@@ -1,6 +1,6 @@
 #!/bin/bash
-# Points Claude Code's status line at njrnotch-statusline.sh, which saves the plan usage
-# numbers (5-hour and weekly limits) for the notch. Safe to re-run.
+# Points Claude Code's status line at njrnotch-statusline.sh, which saves the model name and
+# context window left for the notch. Optional. Safe to re-run.
 #
 # - Backs up settings.json first (settings.json.njrnotch-backup-<time>-<pid>).
 # - Keeps your status line working: its command is saved to njrnotch-statusline-previous.sh
@@ -83,5 +83,5 @@ else:
         settings["statusLine"] = line
         save()
     print(f"Installed the njrNotch status line in {path}")
-    print("Usage limits appear in the notch after your next message in Claude Code.")
+    print("Model and context left appear in the notch after your next message in Claude Code.")
 PY

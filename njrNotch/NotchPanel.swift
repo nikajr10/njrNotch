@@ -24,13 +24,14 @@ final class NotchPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         #if DEBUG
         Color.selfCheck()
+        ClosedActivity.selfCheck()
         #endif
     }
 
     func placeAtTopCentre() {
         guard let screen = NSScreen.target else { return }
         let notch = screen.notchSize
-        let root = NotchView(notchSize: notch, spotify: .shared, agent: .shared, limits: .shared)
+        let root = NotchView(notchSize: notch, spotify: .shared, agent: .shared, pop: .shared)
         // Reuse the hosting view so the notch keeps its state when settings change.
         if let hosting = contentView as? NSHostingView<NotchView> {
             hosting.rootView = root

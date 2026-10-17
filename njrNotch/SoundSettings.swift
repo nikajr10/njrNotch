@@ -25,12 +25,8 @@ struct SoundSettings: View {
                 } maximumValueLabel: {
                     Image(systemName: "speaker.wave.3.fill")
                 }
-                Toggle("Also send a macOS notification when njrNotch isn't focused", isOn: $settings.prefs.notificationsOn)
-                    .onChange(of: settings.prefs.notificationsOn) { _, on in
-                        if on { Alerts.requestNotificationPermission() }
-                    }
             } footer: {
-                Text("Built-in sounds come from macOS (/System/Library/Sounds); njrNotch bundles none.")
+                Text("Sounds play only for Claude Code, never when the song changes. Built-in sounds come from macOS (/System/Library/Sounds); njrNotch bundles none.")
             }
         }
         .formStyle(.grouped)

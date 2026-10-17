@@ -29,6 +29,10 @@ final class SpotifyController {
     private(set) var duration = 0.0
     private(set) var position = 0.0
     private(set) var positionRead = Date()
+    /// Last time the song or play/pause changed; "Auto" in the closed notch shows the most recent activity.
+    private(set) var changedAt = Date.distantPast
+    /// No pill for the song already playing when njrNotch starts.
+    @ObservationIgnored private var hasRefreshed = false
 
     private static let bundleID = "com.spotify.client"
 
@@ -62,8 +66,9 @@ final class SpotifyController {
                 set t to current track
                 return {name of t, artist of t, artwork url of t, player state as string, shuffling, id of t, duration of t, player position}
             end tell
-            """), info.numberOfItems == 8 else {
+            """), info.numberOfItems == 8, info.atIndex(4)?.stringValue != "stopped" else {
             track = nil
+            hasRefreshed = true
             return
         }
         let new = Track(
@@ -72,9 +77,18 @@ final class SpotifyController {
             artworkURL: info.atIndex(3)?.stringValue.flatMap(URL.init(string:)),
             uri: info.atIndex(6)?.stringValue ?? ""
         )
-        if new.uri != track?.uri { isLiked = nil }
+        let playing = info.atIndex(4)?.stringValue == "playing"
+        if new.uri != track?.uri {
+            isLiked = nil
+            if hasRefreshed {
+                PopNotifier.shared.post(PopNote(kind: .song, title: new.title, detail: new.artist,
+                                                artworkURL: new.artworkURL))
+            }
+        }
+        if new.uri != track?.uri || playing != isPlaying { changedAt = .now }
+        hasRefreshed = true
         track = new
-        isPlaying = info.atIndex(4)?.stringValue == "playing"
+        isPlaying = playing
         isShuffling = info.atIndex(5)?.booleanValue ?? false
         duration = (info.atIndex(7)?.doubleValue ?? 0) / 1000 // milliseconds
         position = info.atIndex(8)?.doubleValue ?? 0

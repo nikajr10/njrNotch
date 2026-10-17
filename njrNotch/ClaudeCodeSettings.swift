@@ -19,7 +19,7 @@ struct ClaudeCodeSettings: View {
             Section {
                 integration("Hooks", detail: "Live status, permission prompts, sounds",
                             script: "claude-hooks", isInstalled: hooksInstalled)
-                integration("Status line", detail: "Your 5-hour and weekly usage limits",
+                integration("Status line (optional)", detail: "Model name and context window left",
                             script: "statusline", isInstalled: statusLineInstalled)
                 if !output.isEmpty {
                     Text(output).font(.caption.monospaced()).textSelection(.enabled)
@@ -30,23 +30,17 @@ struct ClaudeCodeSettings: View {
                 Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged.")
             }
             Section {
-                Toggle("5-hour limit", isOn: $settings.prefs.showFiveHourLimit)
-                Toggle("Weekly limit", isOn: $settings.prefs.showWeeklyLimit)
-                Toggle("Fable limit", isOn: $settings.prefs.showFableLimit)
-            } header: {
-                Text("Usage limit bars")
-            } footer: {
-                Text("Claude Code shares limits only with a status line, and only on Pro and Max plans. It doesn't report a separate Fable limit, so that bar says \"Not available from Claude Code\" rather than guess.")
-            }
-            Section("Details") {
                 Toggle("Current task (your last prompt)", isOn: $settings.prefs.showTask)
                 Toggle("What it's doing now", isOn: $settings.prefs.showActivity)
-                Toggle("Time running", isOn: $settings.prefs.showElapsed)
+                Toggle("Session time", isOn: $settings.prefs.showElapsed)
                 Toggle("Summary of the last result", isOn: $settings.prefs.showLastResult)
                 Toggle("Tokens (session and today)", isOn: $settings.prefs.showTokens)
+            } header: {
+                Text("Details")
+            } footer: {
+                Text("Model and effort come from the session's log. Context left needs the status line. Anything Claude Code doesn't report stays hidden.")
             }
             Section {
-                Toggle("Animated indicator in the closed notch", isOn: $settings.prefs.showClosedIndicator)
                 Toggle("Answer permission requests in the notch", isOn: $settings.prefs.answerPermissionsInNotch)
             } header: {
                 Text("Notch")

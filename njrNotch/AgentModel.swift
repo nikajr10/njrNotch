@@ -47,11 +47,14 @@ struct AgentSession: Identifiable {
     var status = AgentStatus.idle
     var task: String?
     var activity: String?
+    /// When the session started: the SessionStart hook, else the transcript's creation time.
     var startedAt: Date?
-    var finishedAt: Date?
     var lastResult: String?
     var permissionRequest: String?
     var transcriptPath: String?
     var tokens: TokenUsage.Counts?
+    /// Model id and effort level as logged in the transcript.
+    var model: String?
+    var effort: String?
     var updatedAt = Date()
 }

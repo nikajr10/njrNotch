@@ -122,7 +122,7 @@ private struct NotchPreview: View {
         GeometryReader { geometry in
             let scale = min(1, (geometry.size.width - 40) / prefs.expandedWidth,
                             (geometry.size.height - 12) / prefs.expandedHeight)
-            NotchContent(notchSize: notch, spotify: .shared, agent: .shared, limits: .shared, tab: $tab)
+            NotchContent(notchSize: notch, spotify: .shared, agent: .shared, tab: $tab)
                 .background { NotchFill(blending: .withinWindow) }
                 .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius))
                 .shadow(color: .black.opacity(0.35), radius: 12, y: 6)

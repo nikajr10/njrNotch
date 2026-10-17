@@ -37,7 +37,6 @@ struct NotchContent: View {
     let notchSize: CGSize
     let spotify: SpotifyController
     let agent: AgentMonitor
-    let limits: UsageLimits
     @Binding var tab: NotchTab
 
     @Namespace private var tabPill
@@ -55,7 +54,7 @@ struct NotchContent: View {
             case .spotify:
                 SpotifyTab(spotify: spotify)
             case .claudeCode:
-                ClaudeCodeTab(agent: agent, limits: limits)
+                ClaudeCodeTab(agent: agent)
             case nil:
                 Text("Turn on Spotify or Claude Code in Settings.")
                     .font(.notch(12))
@@ -128,39 +127,44 @@ private struct SpotifyTab: View {
     }
 }
 
-/// Usage limits pinned at the top; the session details below scroll if the notch is short.
+/// The current session; scrolls if the notch is shorter than its details.
 private struct ClaudeCodeTab: View {
     let agent: AgentMonitor
-    let limits: UsageLimits
 
     private var prefs: Preferences { AppSettings.shared.prefs }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: prefs.spacing) {
-            UsageLimitsView(limits: limits)
-            ScrollView(.vertical, showsIndicators: false) {
-                Group {
-                    if let session = agent.current {
-                        AgentStatusView(agent: agent, session: session)
-                    } else {
-                        VStack(alignment: .leading, spacing: 8) {
+        ScrollView(.vertical, showsIndicators: false) {
+            Group {
+                if let session = agent.current {
+                    AgentStatusView(agent: agent, session: session)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if ClaudeHooks.isInstalled {
                             Label("No Claude Code session running", systemImage: AgentStatus.idle.symbol)
-                                .font(.notch(12))
                                 .foregroundStyle(.secondary)
-                            if prefs.showTokens {
-                                TokenRows(session: nil, today: agent.today)
-                            }
+                        } else {
+                            // Without njrNotch's hooks no session ever reaches the notch.
+                            Label("Claude Code isn't connected to njrNotch", systemImage: "bolt.horizontal.circle")
+                                .foregroundStyle(.orange)
+                            Button("Install the hooks in Settings…") { SettingsWindow.show(.claudeCode) }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(prefs.accent)
+                        }
+                        if prefs.showTokens {
+                            TokenRows(session: nil, today: agent.today)
                         }
                     }
+                    .font(.notch(12))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 12)
             }
-            .mask { // fade out at the bottom instead of cutting a line in half
-                VStack(spacing: 0) {
-                    Color.black
-                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 12)
-                }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 12)
+        }
+        .mask { // fade out at the bottom instead of cutting a line in half
+            VStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 12)
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)

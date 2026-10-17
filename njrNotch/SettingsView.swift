@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum SettingsSection: CaseIterable, Identifiable {
-    case general, appearance, spotify, claudeCode, sounds, about
+    case general, appearance, spotify, claudeCode, notifications, sounds, about
 
     var id: Self { self }
 
@@ -16,6 +16,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .appearance: "Appearance"
         case .spotify: "Spotify"
         case .claudeCode: "Claude Code"
+        case .notifications: "Notifications"
         case .sounds: "Sounds"
         case .about: "About"
         }
@@ -27,6 +28,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .appearance: "paintbrush.fill"
         case .spotify: "music.note"
         case .claudeCode: "terminal.fill"
+        case .notifications: "bell.badge.fill"
         case .sounds: "speaker.wave.2.fill"
         case .about: "info.circle.fill"
         }
@@ -38,6 +40,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .appearance: .blue
         case .spotify: .green
         case .claudeCode: .orange
+        case .notifications: .red
         case .sounds: .pink
         case .about: .indigo
         }
@@ -72,6 +75,7 @@ struct SettingsView: View {
                 case .appearance: AppearanceSettings()
                 case .spotify: SpotifySettings()
                 case .claudeCode: ClaudeCodeSettings()
+                case .notifications: NotificationSettings()
                 case .sounds: SoundSettings()
                 case .about: AboutSettings()
                 }

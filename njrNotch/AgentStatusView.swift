@@ -71,22 +71,27 @@ struct AgentStatusIcon: NSViewRepresentable {
     }
 }
 
-/// One agent session in the Claude Code tab: state, what it's doing, permission prompt, tokens.
+/// One agent session in the Claude Code tab: state, what it's doing, permission prompt,
+/// session time, model, context left and tokens. Anything the agent didn't report is hidden.
 struct AgentStatusView: View {
     let agent: AgentMonitor
     let session: AgentSession
 
     private var prefs: Preferences { AppSettings.shared.prefs }
+    /// Status line data for this session, if the optional status line is installed.
+    private var statusLine: StatusLine.Info? {
+        StatusLine.shared.sessions[String(session.id.drop { $0 != ":" }.dropFirst())]
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: prefs.compactLayout ? 6 : 8) {
+        VStack(alignment: .leading, spacing: prefs.compactLayout ? 6 : 9) {
             if agent.sessions.count > 1 {
                 sessionPicker
             }
             header
 
-            if prefs.showTask, let task = session.task {
-                line("Task", task)
+            if session.status == .needsPermission, let request = session.permissionRequest {
+                permissionBox(request)
             }
             if prefs.showActivity, session.status == .working {
                 Label(session.activity ?? "Working…", systemImage: "arrow.forward.circle")
@@ -94,11 +99,15 @@ struct AgentStatusView: View {
                     .foregroundStyle(AgentStatus.working.color)
                     .lineLimit(1)
             }
-            if session.status == .needsPermission, let request = session.permissionRequest {
-                permissionBox(request)
+            if prefs.showTask, let task = session.task {
+                line("Task", task)
             }
             if prefs.showLastResult, session.status == .done, let result = session.lastResult {
-                line("Result", result, lines: 2)
+                line("Result", result, lines: 3)
+            }
+            modelRow
+            if let left = statusLine?.contextLeftPercent {
+                contextRow(left)
             }
             if prefs.showTokens {
                 TokenRows(session: session.tokens, today: agent.today)
@@ -130,21 +139,58 @@ struct AgentStatusView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            AgentStatusIcon(status: session.status, size: (14 * prefs.textScale).rounded())
-            Text(session.project.isEmpty ? session.agentName : session.project)
-                .font(.notch(13, weight: .semibold))
-                .lineLimit(1)
-            Text(session.status.label).font(.notch(12)).foregroundStyle(session.status.color)
+        HStack(spacing: 10) {
+            AgentStatusIcon(status: session.status, size: (18 * prefs.textScale).rounded())
+                .frame(width: 26, height: 26)
+                .background(session.status.color.opacity(0.18), in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(session.status.label)
+                    .font(.notch(13, weight: .semibold))
+                    .foregroundStyle(session.status.color)
+                Text(session.project.isEmpty ? session.agentName : session.project)
+                    .font(.notch(11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
             Spacer(minLength: 4)
             if prefs.showElapsed, let start = session.startedAt {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Label(Self.elapsed(from: start, to: session.finishedAt ?? context.date), systemImage: "clock")
+                    Label(Self.elapsed(from: start, to: context.date), systemImage: "clock")
                         .font(.notch(11).monospacedDigit())
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Session time \(Self.elapsed(from: start, to: context.date))")
                 }
             }
         }
+    }
+
+    /// "Opus 5.5 · high effort", from the status line or the transcript.
+    @ViewBuilder private var modelRow: some View {
+        let model = statusLine?.model ?? session.model.map(TokenUsage.displayName(model:))
+        if model != nil || session.effort != nil {
+            HStack(spacing: 12) {
+                if let model {
+                    Label(model, systemImage: "cpu")
+                }
+                if let effort = session.effort {
+                    Label("\(effort) effort", systemImage: "gauge.with.dots.needle.67percent")
+                }
+            }
+            .font(.notch(11))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+    }
+
+    private func contextRow(_ left: Double) -> some View {
+        let tokens = statusLine?.contextLeftTokens.map { " · \(TokenRows.format($0))" } ?? ""
+        return HStack(spacing: 8) {
+            Text("Context").foregroundStyle(.secondary)
+            CapsuleBar(fraction: left / 100, color: left < 20 ? .orange : .green, height: 4)
+            Text("\(Int(left.rounded()))% left\(tokens)").monospacedDigit()
+        }
+        .font(.notch(11))
+        .accessibilityElement(children: .combine)
     }
 
     private func permissionBox(_ request: String) -> some View {
@@ -189,8 +235,8 @@ struct AgentStatusView: View {
     }
 
     private static func elapsed(from start: Date, to end: Date) -> String {
-        Duration.seconds(max(0, end.timeIntervalSince(start)))
-            .formatted(.time(pattern: .minuteSecond))
+        let seconds = max(0, end.timeIntervalSince(start))
+        return Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
     }
 }
 
@@ -220,7 +266,7 @@ struct TokenRows: View {
         Text("\(label) ").foregroundStyle(.secondary) + Text(format(tokens))
     }
 
-    private static func format(_ tokens: Int) -> String {
+    static func format(_ tokens: Int) -> String {
         tokens.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
     }
 }

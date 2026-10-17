@@ -36,6 +36,23 @@ struct GeneralSettings: View {
                     }
                 }
             }
+            Section {
+                Toggle("Show live activity in the closed notch", isOn: $settings.prefs.showClosedIndicator)
+                Group {
+                    Picker("When both are active, show", selection: $settings.prefs.closedSource) {
+                        Text("Spotify").tag(ClosedSource.spotify)
+                        Text("Claude Code").tag(ClosedSource.claudeCode)
+                        Text("Auto (most recent)").tag(ClosedSource.auto)
+                    }
+                    Toggle("Album art", isOn: $settings.prefs.closedShowsArt)
+                    Toggle("Equaliser while playing", isOn: $settings.prefs.closedShowsEqualizer)
+                }
+                .disabled(!settings.prefs.showClosedIndicator)
+            } header: {
+                Text("Closed notch")
+            } footer: {
+                Text("Claude needing permission always shows first.")
+            }
             Section("Display") {
                 Picker("Screen", selection: $settings.prefs.screenName) {
                     Text("Automatic (notch screen)").tag("")

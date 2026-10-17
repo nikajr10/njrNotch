@@ -5,13 +5,13 @@
 
 import SwiftUI
 
-/// Black notch pinned to the top edge. Closed: the notch plus small status "ears".
-/// Open (hover or click): tabs for Spotify and Claude Code.
+/// Black notch pinned to the top edge. Closed: the notch with live activity on each side, and
+/// pop-down notifications under it. Open (hover or click): tabs for Spotify and Claude Code.
 struct NotchView: View {
     let notchSize: CGSize
     let spotify: SpotifyController
     let agent: AgentMonitor
-    let limits: UsageLimits
+    let pop: PopNotifier
 
     @State private var isExpanded = false
     @State private var isFinishPulse = false
@@ -22,14 +22,36 @@ struct NotchView: View {
     private var spring: Animation { .spring(response: prefs.animationDuration, dampingFraction: 0.8) }
 
     var body: some View {
+        ZStack(alignment: .top) {
+            if let note = pop.current, !isExpanded {
+                PopPill(note: note)
+                    .padding(.top, notchSize.height + 8)
+                    .onHover { pop.isHovering = $0 }
+                    .onTapGesture {
+                        pop.dismiss()
+                        open(on: note.tab)
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            notch
+        }
+        .animation(.spring(response: prefs.popAnimation, dampingFraction: 0.75), value: pop.current?.id)
+        .onChange(of: pop.current?.id) {
+            // Already looking at it: no pill.
+            if isExpanded, pop.current?.tab == tab { pop.dismiss() }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var notch: some View {
         let radius = isExpanded ? prefs.cornerRadius : 10
         let shape = UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius)
 
-        Group {
+        return Group {
             if isExpanded {
-                NotchContent(notchSize: notchSize, spotify: spotify, agent: agent, limits: limits, tab: $tab)
+                NotchContent(notchSize: notchSize, spotify: spotify, agent: agent, tab: $tab)
             } else {
-                closed
+                ClosedNotchView(notchSize: notchSize, activity: activity)
             }
         }
         .background {
@@ -54,57 +76,53 @@ struct NotchView: View {
             Button("Settings…") { SettingsWindow.show() }
             Button("Quit njrNotch") { NSApp.terminate(nil) }
         }
-        .animation(spring, value: indicator)
+        .animation(spring, value: activity)
         .task(id: agent.finishCount) {
             guard agent.finishCount > 0 else { return }
             isFinishPulse = true
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(5))
             isFinishPulse = false
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func setExpanded(_ open: Bool) {
         guard open != isExpanded else { return }
         if open {
             spotify.refresh() // shuffle changes made in Spotify aren't broadcast
-            if indicator == .needsPermission { tab = .claudeCode }
+            if let activity { tab = activity.tab }
         } else {
             agent.selectedID = nil // reopen on the most urgent session
         }
         withAnimation(spring) { isExpanded = open }
     }
 
-    // MARK: - Closed
-
-    /// What the closed notch shows: any session needing permission, else working, else a brief "done".
-    private var indicator: AgentStatus? {
-        guard prefs.claudeCodeEnabled, prefs.showClosedIndicator else { return nil }
-        let statuses = agent.sessions.map(\.status)
-        if statuses.contains(.needsPermission) { return .needsPermission }
-        if statuses.contains(.working) { return .working }
-        return isFinishPulse ? .done : nil
+    private func open(on tab: NotchTab) {
+        setExpanded(true)
+        self.tab = tab
     }
 
-    private var closed: some View {
-        let ear = notchSize.height
-        return HStack(spacing: 0) {
-            if let indicator {
-                AgentStatusIcon(status: indicator, size: (ear * 0.42).rounded())
-                    .frame(width: ear)
-                    .transition(.opacity)
-            }
-            Color.clear.frame(width: notchSize.width)
-            if let indicator {
-                Circle()
-                    .fill(indicator.color)
-                    .frame(width: 7, height: 7)
-                    .frame(width: ear)
-                    .transition(.opacity)
-            }
-        }
-        .frame(height: notchSize.height)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(indicator.map { "Agent \($0.label)" } ?? "Notch")
+    // MARK: - Closed
+
+    private var activity: ClosedActivity? {
+        guard prefs.showClosedIndicator else { return nil }
+        return ClosedActivity.pick(
+            spotify: spotifyActivity, spotifyChanged: spotify.changedAt,
+            claude: claudeActivity, claudeChanged: agent.sessions.map(\.updatedAt).max() ?? .distantPast,
+            source: prefs.closedSource
+        )
+    }
+
+    private var spotifyActivity: ClosedActivity? {
+        guard prefs.showSpotify, let track = spotify.track else { return nil }
+        return .spotify(artwork: track.artworkURL, isPlaying: spotify.isPlaying)
+    }
+
+    /// Any session needing permission, else working, else a brief "done".
+    private var claudeActivity: ClosedActivity? {
+        guard prefs.claudeCodeEnabled else { return nil }
+        let statuses = agent.sessions.map(\.status)
+        if statuses.contains(.needsPermission) { return .claude(.needsPermission) }
+        if statuses.contains(.working) { return .claude(.working) }
+        return isFinishPulse ? .claude(.done) : nil
     }
 }
