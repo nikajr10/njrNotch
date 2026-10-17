@@ -192,6 +192,7 @@ final class AgentMonitor {
                 if let sessionID, let info {
                     self.update(sessionID) {
                         $0.tokens = info.counts
+                        $0.lastContext = info.lastContext ?? $0.lastContext
                         $0.model = info.model ?? $0.model
                         $0.effort = info.effort ?? $0.effort
                         $0.startedAt = $0.startedAt ?? info.started

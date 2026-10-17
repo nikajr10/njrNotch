@@ -37,21 +37,33 @@ struct GeneralSettings: View {
                 }
             }
             Section {
-                Toggle("Show live activity in the closed notch", isOn: $settings.prefs.showClosedIndicator)
+                Toggle("Show previews beside the closed notch", isOn: $settings.prefs.showClosedIndicator)
                 Group {
-                    Picker("When both are active, show", selection: $settings.prefs.closedSource) {
-                        Text("Spotify").tag(ClosedSource.spotify)
-                        Text("Claude Code").tag(ClosedSource.claudeCode)
-                        Text("Auto (most recent)").tag(ClosedSource.auto)
+                    Picker("Closed notch shows", selection: $settings.prefs.closedSource) {
+                        Text("Auto").tag(ClosedSource.auto)
+                        Text("Music only").tag(ClosedSource.spotify)
+                        Text("Claude Code only").tag(ClosedSource.claudeCode)
                     }
                     Toggle("Album art", isOn: $settings.prefs.closedShowsArt)
                     Toggle("Equaliser while playing", isOn: $settings.prefs.closedShowsEqualizer)
+                    Toggle("Animate Claude's state on the logo", isOn: $settings.prefs.closedLogoAnimates)
                 }
                 .disabled(!settings.prefs.showClosedIndicator)
             } header: {
                 Text("Closed notch")
             } footer: {
-                Text("Claude needing permission always shows first.")
+                Text("Auto: music on the left, and on the right the equaliser, or the Claude logo while Claude Code is busy. With no music, the Claude logo and its state. Previews can also be turned on and off from the notch's right-click menu.")
+            }
+            Section {
+                Toggle("Keyboard shortcut", isOn: $settings.prefs.hotKeyOn)
+                LabeledContent("Open and close the notch") {
+                    ShortcutRecorder()
+                }
+                .disabled(!settings.prefs.hotKeyOn)
+            } header: {
+                Text("Shortcut")
+            } footer: {
+                Text("Works from any app. Click the shortcut, then press a new one with ⌃, ⌥ or ⌘.")
             }
             Section("Display") {
                 Picker("Screen", selection: $settings.prefs.screenName) {
@@ -62,7 +74,7 @@ struct GeneralSettings: View {
                 }
                 Toggle("Show menu bar icon", isOn: $settings.prefs.showMenuBarIcon)
                 if !settings.prefs.showMenuBarIcon {
-                    Text("To get back here, right-click the notch or open njrNotch again.")
+                    Text("To get back to Settings, right-click the notch, press \(settings.prefs.hotKeyLabel) and click the gear, or open njrNotch again from Finder or Spotlight.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

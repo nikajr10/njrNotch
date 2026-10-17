@@ -40,6 +40,7 @@ extension AgentStatus {
 struct AgentStatusIcon: NSViewRepresentable {
     let status: AgentStatus
     let size: CGFloat
+    var animates = true
 
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
@@ -50,12 +51,13 @@ struct AgentStatusIcon: NSViewRepresentable {
 
     func updateNSView(_ view: NSImageView, context: Context) {
         // Only on a real change: re-adding the effect on every SwiftUI update would restart it.
-        guard context.coordinator.shown.map({ $0 != (status, size) }) ?? true else { return }
-        context.coordinator.shown = (status, size)
+        guard context.coordinator.shown.map({ $0 != (status, size, animates) }) ?? true else { return }
+        context.coordinator.shown = (status, size, animates)
         view.image = NSImage(systemSymbolName: status.symbol, accessibilityDescription: status.label)?
             .withSymbolConfiguration(.init(pointSize: size, weight: .semibold))
         view.contentTintColor = NSColor(status.color)
         view.removeAllSymbolEffects()
+        guard animates else { return }
         switch status {
         case .working: view.addSymbolEffect(.variableColor.iterative, options: .repeating)
         case .needsPermission: view.addSymbolEffect(.pulse, options: .repeating)
@@ -67,7 +69,7 @@ struct AgentStatusIcon: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
-        var shown: (AgentStatus, CGFloat)?
+        var shown: (AgentStatus, CGFloat, Bool)?
     }
 }
 
@@ -106,12 +108,7 @@ struct AgentStatusView: View {
                 line("Result", result, lines: 3)
             }
             modelRow
-            if let left = statusLine?.contextLeftPercent {
-                contextRow(left)
-            }
-            if prefs.showTokens {
-                TokenRows(session: session.tokens, today: agent.today)
-            }
+            TokenBlock(session: session, today: agent.today)
         }
     }
 
@@ -129,7 +126,8 @@ struct AgentStatusView: View {
                         .font(.notch(11))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(.primary.opacity(item.id == session.id ? 0.18 : 0.07), in: Capsule())
+                        .background(item.id == session.id ? prefs.claudeAccent.opacity(0.25) : .primary.opacity(0.07),
+                                    in: Capsule())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(item.project), \(item.status.label)")
@@ -164,15 +162,16 @@ struct AgentStatusView: View {
         }
     }
 
-    /// "Opus 5.5 · high effort", from the status line or the transcript.
+    /// "Opus 5.5 · high effort", from the status line or the transcript; only what they contain.
     @ViewBuilder private var modelRow: some View {
         let model = statusLine?.model ?? session.model.map(TokenUsage.displayName(model:))
-        if model != nil || session.effort != nil {
+        let effort = statusLine?.effort ?? session.effort
+        if model != nil || effort != nil {
             HStack(spacing: 12) {
                 if let model {
                     Label(model, systemImage: "cpu")
                 }
-                if let effort = session.effort {
+                if let effort {
                     Label("\(effort) effort", systemImage: "gauge.with.dots.needle.67percent")
                 }
             }
@@ -180,17 +179,6 @@ struct AgentStatusView: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
-    }
-
-    private func contextRow(_ left: Double) -> some View {
-        let tokens = statusLine?.contextLeftTokens.map { " · \(TokenRows.format($0))" } ?? ""
-        return HStack(spacing: 8) {
-            Text("Context").foregroundStyle(.secondary)
-            CapsuleBar(fraction: left / 100, color: left < 20 ? .orange : .green, height: 4)
-            Text("\(Int(left.rounded()))% left\(tokens)").monospacedDigit()
-        }
-        .font(.notch(11))
-        .accessibilityElement(children: .combine)
     }
 
     private func permissionBox(_ request: String) -> some View {
@@ -237,36 +225,5 @@ struct AgentStatusView: View {
     private static func elapsed(from start: Date, to end: Date) -> String {
         let seconds = max(0, end.timeIntervalSince(start))
         return Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
-    }
-}
-
-/// Input, output and total tokens for the session and for today. Never cost.
-struct TokenRows: View {
-    let session: TokenUsage.Counts?
-    let today: TokenUsage.Counts?
-
-    var body: some View {
-        let rows = [("Session", session), ("Today", today)].compactMap { name, counts in counts.map { (name, $0) } }
-        if !rows.isEmpty {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
-                ForEach(rows, id: \.0) { name, counts in
-                    GridRow {
-                        Text("\(name) tokens").foregroundStyle(.secondary)
-                        Self.value("in", counts.input)
-                        Self.value("out", counts.output)
-                        Self.value("total", counts.total)
-                    }
-                }
-            }
-            .font(.notch(11).monospacedDigit())
-        }
-    }
-
-    private static func value(_ label: String, _ tokens: Int) -> Text {
-        Text("\(label) ").foregroundStyle(.secondary) + Text(format(tokens))
-    }
-
-    static func format(_ tokens: Int) -> String {
-        tokens.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
     }
 }

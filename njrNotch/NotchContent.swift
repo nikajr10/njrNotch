@@ -47,9 +47,7 @@ struct NotchContent: View {
         let shown = tabs.contains(tab) ? tab : tabs.first
 
         VStack(alignment: .leading, spacing: prefs.spacing) {
-            if tabs.count > 1 {
-                tabBar(tabs)
-            }
+            tabBar(tabs)
             switch shown {
             case .spotify:
                 SpotifyTab(spotify: spotify)
@@ -70,14 +68,24 @@ struct NotchContent: View {
         .frame(maxHeight: prefs.expandedHeight, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(.primary)
-        .tint(prefs.accent)
+        .tint(shown.map(accent) ?? prefs.accent)
         .environment(\.colorScheme, prefs.notchScheme)
     }
 
+    /// Each tab's own accent, set in its Settings section.
+    private func accent(_ tab: NotchTab) -> Color {
+        switch tab {
+        case .spotify: spotify.accent
+        case .claudeCode: prefs.claudeAccent
+        }
+    }
+
+    /// The tabs (when there's more than one), and the gear that opens Settings in the notch.
     private func tabBar(_ tabs: [NotchTab]) -> some View {
         HStack(spacing: 4) {
-            ForEach(tabs, id: \.self) { item in
+            ForEach(tabs.count > 1 ? tabs : [], id: \.self) { item in
                 let isSelected = item == tab
+                let accent = accent(item)
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { tab = item }
                 } label: {
@@ -89,13 +97,13 @@ struct NotchContent: View {
                         }
                     }
                     .font(.notch(12, weight: .semibold))
-                    .foregroundStyle(isSelected ? prefs.accent : .secondary)
+                    .foregroundStyle(isSelected ? accent : .secondary)
                     .padding(.horizontal, prefs.tabBarShowsLabels ? 10 : 14)
                     .padding(.vertical, 5)
                     .background {
                         if isSelected {
                             Capsule()
-                                .fill(prefs.accent.opacity(0.2))
+                                .fill(accent.opacity(0.2))
                                 .matchedGeometryEffect(id: "pill", in: tabPill)
                         }
                     }
@@ -106,7 +114,21 @@ struct NotchContent: View {
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 22)
+        .overlay(alignment: .trailing) {
+            Button {
+                NotchState.shared.openSettings()
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.notch(12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .help("Settings")
+        }
     }
 }
 
@@ -149,11 +171,9 @@ private struct ClaudeCodeTab: View {
                                 .foregroundStyle(.orange)
                             Button("Install the hooks in Settings…") { SettingsWindow.show(.claudeCode) }
                                 .buttonStyle(.plain)
-                                .foregroundStyle(prefs.accent)
+                                .foregroundStyle(prefs.claudeAccent)
                         }
-                        if prefs.showTokens {
-                            TokenRows(session: nil, today: agent.today)
-                        }
+                        TokenBlock(session: nil, today: agent.today)
                     }
                     .font(.notch(12))
                 }

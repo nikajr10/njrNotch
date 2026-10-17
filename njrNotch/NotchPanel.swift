@@ -25,29 +25,33 @@ final class NotchPanel: NSPanel {
         #if DEBUG
         Color.selfCheck()
         ClosedActivity.selfCheck()
+        AlbumColor.selfCheck()
         #endif
     }
 
+    /// Only Settings in the notch takes typing; otherwise clicks in the notch leave your app's focus alone.
+    override var canBecomeKey: Bool { NotchState.shared.showsSettings }
+
+    /// Called on launch, display and Space changes, and setting changes. Views are never rebuilt here:
+    /// the hosting view only gets a new root when the notch size changes, and the frame only moves when it differs.
     func placeAtTopCentre() {
         guard let screen = NSScreen.target else { return }
         let notch = screen.notchSize
-        let root = NotchView(notchSize: notch, spotify: .shared, agent: .shared, pop: .shared)
-        // Reuse the hosting view so the notch keeps its state when settings change.
         if let hosting = contentView as? NSHostingView<NotchView> {
-            hosting.rootView = root
+            if hosting.rootView.notchSize != notch {
+                hosting.rootView = NotchView(notchSize: notch, spotify: .shared, agent: .shared, pop: .shared)
+            }
         } else {
-            contentView = NSHostingView(rootView: root)
+            contentView = NSHostingView(rootView: NotchView(notchSize: notch, spotify: .shared, agent: .shared, pop: .shared))
         }
         let prefs = AppSettings.shared.prefs
         let size = CGSize(
             width: max(prefs.expandedWidth, notch.width + 2 * notch.height),
-            height: max(prefs.expandedHeight, notch.height)
+            height: max(prefs.expandedHeight, NotchSettingsView.minHeight, notch.height)
         )
-        setFrame(
-            NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.maxY - size.height,
-                   width: size.width, height: size.height),
-            display: true
-        )
+        let frame = NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.maxY - size.height,
+                           width: size.width, height: size.height)
+        if frame != self.frame { setFrame(frame, display: true) }
     }
 }
 

@@ -53,6 +53,8 @@ struct AgentSession: Identifiable {
     var permissionRequest: String?
     var transcriptPath: String?
     var tokens: TokenUsage.Counts?
+    /// Tokens in the context window at the latest reply, from the transcript (an estimate's "used").
+    var lastContext: Int?
     /// Model id and effort level as logged in the transcript.
     var model: String?
     var effort: String?

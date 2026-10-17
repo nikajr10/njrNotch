@@ -6,30 +6,35 @@
 import SwiftUI
 
 /// Black notch pinned to the top edge. Closed: the notch with live activity on each side, and
-/// pop-down notifications under it. Open (hover or click): tabs for Spotify and Claude Code.
+/// pop-down notifications under it. Open (hover, click or the shortcut): tabs for Spotify and Claude Code,
+/// or Settings.
 struct NotchView: View {
     let notchSize: CGSize
     let spotify: SpotifyController
     let agent: AgentMonitor
     let pop: PopNotifier
 
-    @State private var isExpanded = false
+    @Bindable private var state = NotchState.shared
+    @Bindable private var settings = AppSettings.shared
     @State private var isFinishPulse = false
-    @State private var tab = NotchTab.claudeCode
+    /// Paused longer than `pausedShowsFor`: the closed notch stops showing the song.
+    @State private var isMusicStale = false
     @State private var hoverDelay: Task<Void, Never>?
+
+    private static let pausedShowsFor: Duration = .seconds(10 * 60)
 
     private var prefs: Preferences { AppSettings.shared.prefs }
     private var spring: Animation { .spring(response: prefs.animationDuration, dampingFraction: 0.8) }
 
     var body: some View {
         ZStack(alignment: .top) {
-            if let note = pop.current, !isExpanded {
-                PopPill(note: note)
-                    .padding(.top, notchSize.height + 8)
+            if let note = pop.current, !state.isExpanded {
+                PopPill(note: note, width: notchSize.width)
+                    .padding(.top, notchSize.height + 3)
                     .onHover { pop.isHovering = $0 }
                     .onTapGesture {
                         pop.dismiss()
-                        open(on: note.tab)
+                        state.open(note.tab)
                     }
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -38,42 +43,58 @@ struct NotchView: View {
         .animation(.spring(response: prefs.popAnimation, dampingFraction: 0.75), value: pop.current?.id)
         .onChange(of: pop.current?.id) {
             // Already looking at it: no pill.
-            if isExpanded, pop.current?.tab == tab { pop.dismiss() }
+            if state.isExpanded, !state.showsSettings, pop.current?.tab == state.tab { pop.dismiss() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var notch: some View {
-        let radius = isExpanded ? prefs.cornerRadius : 10
+        let radius = state.isExpanded ? prefs.cornerRadius : 10
         let shape = UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius)
 
         return Group {
-            if isExpanded {
-                NotchContent(notchSize: notchSize, spotify: spotify, agent: agent, tab: $tab)
+            if state.isExpanded {
+                if state.showsSettings {
+                    NotchSettingsView(notchSize: notchSize)
+                        .transition(.opacity)
+                } else {
+                    NotchContent(notchSize: notchSize, spotify: spotify, agent: agent, tab: $state.tab)
+                        .transition(.opacity)
+                }
             } else {
-                ClosedNotchView(notchSize: notchSize, activity: activity)
+                ClosedNotchView(notchSize: notchSize, activity: activity, spotify: spotify)
             }
         }
         .background {
-            if isExpanded { NotchFill() } else { Color.black }
+            if state.isExpanded { NotchFill() } else { Color.black }
         }
         .clipShape(shape)
         .contentShape(shape)
         .onHover { hovering in
             hoverDelay?.cancel()
-            if hovering && !prefs.openOnClick {
+            if hovering && !prefs.openOnClick && isPointerOnClosedNotch {
                 hoverDelay = Task {
                     try? await Task.sleep(for: .seconds(prefs.openDelay))
-                    if !Task.isCancelled { setExpanded(true) }
+                    if !Task.isCancelled, !state.isExpanded, isPointerOnClosedNotch {
+                        state.setExpanded(true, tab: activity?.tab)
+                    }
                 }
             }
-            if !hovering { setExpanded(false) }
+            // Settings stay open (colour panel, menus) until Back.
+            if !hovering && !state.showsSettings { state.setExpanded(false) }
         }
         .onTapGesture {
-            if !isExpanded { setExpanded(true) }
+            if !state.isExpanded { state.setExpanded(true, tab: activity?.tab) }
         }
+        // Works without the menu bar icon, which the MacBook notch can hide.
         .contextMenu {
-            Button("Settings…") { SettingsWindow.show() }
+            Button("Settings") { state.openSettings() }
+            Button("Open Spotify tab") { state.open(.spotify) }
+                .disabled(!NotchTab.spotify.isEnabled)
+            Button("Open Claude Code tab") { state.open(.claudeCode) }
+                .disabled(!NotchTab.claudeCode.isEnabled)
+            Toggle("Show previews", isOn: $settings.prefs.showClosedIndicator)
+            Divider()
             Button("Quit njrNotch") { NSApp.terminate(nil) }
         }
         .animation(spring, value: activity)
@@ -83,46 +104,44 @@ struct NotchView: View {
             try? await Task.sleep(for: .seconds(5))
             isFinishPulse = false
         }
-    }
-
-    private func setExpanded(_ open: Bool) {
-        guard open != isExpanded else { return }
-        if open {
-            spotify.refresh() // shuffle changes made in Spotify aren't broadcast
-            if let activity { tab = activity.tab }
-        } else {
-            agent.selectedID = nil // reopen on the most urgent session
+        .task(id: "\(spotify.isPlaying) \(spotify.track?.uri ?? "")") {
+            isMusicStale = false
+            guard !spotify.isPlaying else { return }
+            try? await Task.sleep(for: Self.pausedShowsFor)
+            if !Task.isCancelled { isMusicStale = true }
         }
-        withAnimation(spring) { isExpanded = open }
     }
 
-    private func open(on tab: NotchTab) {
-        setExpanded(true)
-        self.tab = tab
+    /// SwiftUI checks hover against the shape mid-animation, so a pointer resting under the closed notch but
+    /// inside the open one made it open and close in a loop. Opening on hover needs the pointer really on
+    /// the closed notch (and its ears).
+    private var isPointerOnClosedNotch: Bool {
+        guard let screen = NSScreen.target else { return false }
+        let width = notchSize.width + (activity == nil ? 0 : 2 * notchSize.height)
+        let rect = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - notchSize.height,
+                          width: width, height: notchSize.height)
+        return rect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
     }
 
     // MARK: - Closed
 
     private var activity: ClosedActivity? {
         guard prefs.showClosedIndicator else { return nil }
-        return ClosedActivity.pick(
-            spotify: spotifyActivity, spotifyChanged: spotify.changedAt,
-            claude: claudeActivity, claudeChanged: agent.sessions.map(\.updatedAt).max() ?? .distantPast,
-            source: prefs.closedSource
-        )
+        return ClosedActivity.pick(music: music, claude: claudeStatus, source: prefs.closedSource)
     }
 
-    private var spotifyActivity: ClosedActivity? {
-        guard prefs.showSpotify, let track = spotify.track else { return nil }
-        return .spotify(artwork: track.artworkURL, isPlaying: spotify.isPlaying)
+    /// true playing, false paused recently, nil for no music (Spotify closed, stopped or paused long ago).
+    private var music: Bool? {
+        guard prefs.showSpotify, spotify.track != nil, spotify.isPlaying || !isMusicStale else { return nil }
+        return spotify.isPlaying
     }
 
     /// Any session needing permission, else working, else a brief "done".
-    private var claudeActivity: ClosedActivity? {
+    private var claudeStatus: AgentStatus? {
         guard prefs.claudeCodeEnabled else { return nil }
         let statuses = agent.sessions.map(\.status)
-        if statuses.contains(.needsPermission) { return .claude(.needsPermission) }
-        if statuses.contains(.working) { return .claude(.working) }
-        return isFinishPulse ? .claude(.done) : nil
+        if statuses.contains(.needsPermission) { return .needsPermission }
+        if statuses.contains(.working) { return .working }
+        return isFinishPulse ? .done : nil
     }
 }

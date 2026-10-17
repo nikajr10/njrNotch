@@ -31,25 +31,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel.placeAtTopCentre()
         panel.orderFrontRegardless()
+        HotKey.apply()
 
-        // Re-place when displays change, or when a setting (screen, notch size) changes.
+        // Follow display and Space changes straight away: right screen, and fresh Spotify state.
         NotificationCenter.default.addObserver(
-            self, selector: #selector(reposition),
+            self, selector: #selector(screenChanged),
             name: NSApplication.didChangeScreenParametersNotification, object: nil
         )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(screenChanged),
+            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil
+        )
+        // A setting (screen, notch size, shortcut) changed.
         NotificationCenter.default.addObserver(
-            self, selector: #selector(reposition),
+            self, selector: #selector(settingsChanged),
             name: UserDefaults.didChangeNotification, object: nil
         )
     }
 
-    /// Opening the app again (Finder, Spotlight) shows Settings, even with the menu bar icon hidden.
+    /// Opening the app again (Finder, Spotlight) opens Settings in the notch, even with the menu bar icon hidden.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        SettingsWindow.show()
-        return true
+        NotchState.shared.openSettings()
+        return false
     }
 
-    @objc private func reposition() {
+    @objc private func screenChanged() {
         panel.placeAtTopCentre()
+        panel.orderFrontRegardless()
+        SpotifyController.shared.refresh()
+    }
+
+    @objc private func settingsChanged() {
+        panel.placeAtTopCentre()
+        HotKey.apply()
     }
 }

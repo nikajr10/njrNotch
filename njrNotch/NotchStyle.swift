@@ -8,12 +8,26 @@ import SwiftUI
 
 /// Appearance settings, resolved for the notch views.
 extension Preferences {
+    static let claudeOrange = "#D97757"
+
+    /// The app-wide accent from Appearance; each tab can have its own (below).
     var accent: Color { Color(hex: accentHex) }
+    /// The Claude Code tab's accent: the custom colour from Settings, else Claude orange.
+    var claudeAccent: Color { Color(hex: claudeAccentHex.isEmpty ? Self.claudeOrange : claudeAccentHex) }
     var spacing: CGFloat { compactLayout ? 8 : 14 }
     var padding: CGFloat { compactLayout ? 14 : 20 }
     /// Dark text on a light custom background, light text everywhere else, so it stays readable.
     var notchScheme: ColorScheme {
         background == .custom && Color(hex: customBackgroundHex).luminance > 0.6 ? .light : .dark
+    }
+}
+
+extension SpotifyController {
+    /// The Spotify tab's accent: the custom colour from Settings, else the album art's colour, else the app accent.
+    var accent: Color {
+        let prefs = AppSettings.shared.prefs
+        if !prefs.spotifyAccentHex.isEmpty { return Color(hex: prefs.spotifyAccentHex) }
+        return artAccentHex.map { Color(hex: $0) } ?? prefs.accent
     }
 }
 

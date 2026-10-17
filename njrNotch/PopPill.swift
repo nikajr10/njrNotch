@@ -6,12 +6,14 @@
 import SwiftUI
 
 /// The pop-down notification: icon or album art, a title and one detail line, on black.
+/// As wide as the physical notch above it.
 struct PopPill: View {
     let note: PopNote
+    let width: CGFloat
 
     var body: some View {
-        HStack(spacing: 10) {
-            icon.frame(width: 30, height: 30)
+        HStack(spacing: 8) {
+            icon.frame(width: 26, height: 26)
             VStack(alignment: .leading, spacing: 1) {
                 Text(note.title)
                     .font(.notch(12, weight: .semibold))
@@ -27,10 +29,10 @@ struct PopPill: View {
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.leading, 8)
-        .padding(.trailing, 14)
-        .padding(.vertical, 7)
-        .frame(width: 320)
+        .padding(.leading, 7)
+        .padding(.trailing, 12)
+        .padding(.vertical, 6)
+        .frame(width: width)
         .background(.black, in: Capsule())
         .overlay(Capsule().strokeBorder(.white.opacity(0.08)))
         .contentShape(Capsule())
@@ -42,12 +44,17 @@ struct PopPill: View {
     @ViewBuilder private var icon: some View {
         switch note.kind {
         case .song:
-            AsyncImage(url: note.artworkURL) { image in
+            // The shared download, once it has arrived; until then the URL.
+            if let artwork = SpotifyController.shared.artwork, SpotifyController.shared.track?.artworkURL == note.artworkURL {
+                Image(nsImage: artwork).resizable().scaledToFill().clipShape(Circle())
+            } else {
+                AsyncImage(url: note.artworkURL) { image in
                 image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "music.note").foregroundStyle(.green)
+                } placeholder: {
+                    Image(systemName: "music.note").foregroundStyle(SpotifyController.shared.accent)
+                }
+                .clipShape(Circle())
             }
-            .clipShape(Circle())
         case .done: symbol(AgentStatus.done.symbol, AgentStatus.done.color)
         case .permission: symbol(AgentStatus.needsPermission.symbol, AgentStatus.needsPermission.color)
         case .sessionEnded: symbol("power.circle.fill", .gray)

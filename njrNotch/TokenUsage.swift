@@ -22,6 +22,8 @@ nonisolated enum TokenUsage {
         var effort: String?
         /// When the transcript file was created, i.e. when the session started.
         var started: Date?
+        /// Tokens in the context window at the latest reply: its input + cache read + cache creation.
+        var lastContext: Int?
     }
 
     static let projectsDir = FileManager.default.homeDirectoryForCurrentUser
@@ -45,6 +47,14 @@ nonisolated enum TokenUsage {
                     .map(Calendar.current.isDateInToday) ?? false)
             }
         return scan(files: files) { Calendar.current.isDateInToday($0) }.counts
+    }
+
+    /// Context window for a model id, for the estimate when there's no status line: 1M for "[1m]" variants and
+    /// the models that have 1M by default (all current ones), 200K for Haiku 4.5 and older models.
+    static func contextWindow(model id: String) -> Int {
+        let millions = ["[1m]", "fable", "mythos", "opus-5", "opus-4-6", "opus-4-7", "opus-4-8",
+                        "sonnet-5", "sonnet-4-6", "haiku-5"]
+        return millions.contains { id.contains($0) } ? 1_000_000 : 200_000
     }
 
     /// "claude-opus-5-5" -> "Opus 5.5", "claude-sonnet-4-5-20250929" -> "Sonnet 4.5".
@@ -71,8 +81,10 @@ nonisolated enum TokenUsage {
                       let usage = entry.message?.usage else { continue }
                 if let id = entry.message?.id, !seen.insert("\(id):\(entry.requestId ?? "")").inserted { continue }
                 if let stamp = entry.timestamp, let date = dates.date(from: stamp), !include(date) { continue }
-                session.counts.input += (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+                let input = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
                     + (usage.cache_read_input_tokens ?? 0)
+                session.counts.input += input
+                if entry.isSidechain != true { session.lastContext = input } // subagents have their own context
                 session.counts.output += usage.output_tokens ?? 0
                 // "<synthetic>" marks messages Claude Code wrote itself, e.g. errors.
                 if let model = entry.message?.model, !model.hasPrefix("<") { session.model = model }
@@ -90,6 +102,10 @@ nonisolated enum TokenUsage {
         assert(displayName(model: "claude-3-5-haiku-20241022") == "Haiku 3.5")
         assert(displayName(model: "claude-opus-4-6[1m]") == "Opus 4.6")
         assert(displayName(model: "claude-fable") == "Fable")
+        assert(contextWindow(model: "claude-opus-5-5") == 1_000_000)
+        assert(contextWindow(model: "claude-sonnet-4-5-20250929") == 200_000)
+        assert(contextWindow(model: "claude-sonnet-4-5[1m]") == 1_000_000)
+        assert(contextWindow(model: "claude-haiku-4-5") == 200_000)
     }
     #endif
 
@@ -97,6 +113,7 @@ nonisolated enum TokenUsage {
         let timestamp: String?
         let requestId: String?
         let effort: String?
+        let isSidechain: Bool?
         let message: Message?
     }
 

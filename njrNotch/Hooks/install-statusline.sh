@@ -1,6 +1,6 @@
 #!/bin/bash
-# Points Claude Code's status line at njrnotch-statusline.sh, which saves the model name and
-# context window left for the notch. Optional. Safe to re-run.
+# Points Claude Code's status line at njrnotch-statusline.sh, which saves the context window
+# (size and tokens used), model and effort to ~/.claude/njrnotch-session.json for the notch. Safe to re-run.
 #
 # - Backs up settings.json first (settings.json.njrnotch-backup-<time>-<pid>).
 # - Keeps your status line working: its command is saved to njrnotch-statusline-previous.sh
@@ -32,7 +32,8 @@ path, script, flag = sys.argv[1:4]
 uninstall = flag == "--uninstall"
 home = os.path.dirname(path)
 previous = os.path.join(home, "njrnotch-statusline-previous.sh")
-usage = os.path.join(home, "njrnotch-usage.json")
+session = os.path.join(home, "njrnotch-session.json")
+legacy = os.path.join(home, "njrnotch-usage.json")  # written by older versions
 ours = "~/.claude/njrnotch-statusline.sh"
 
 settings = {}
@@ -66,7 +67,7 @@ if uninstall:
         print(f"Removed the njrNotch status line from {path}")
     else:
         print("The status line isn't njrNotch's, so settings.json was left as it is.")
-    for leftover in (previous, script, usage):
+    for leftover in (previous, script, session, legacy):
         if os.path.exists(leftover):
             os.remove(leftover)
 else:
@@ -83,5 +84,7 @@ else:
         settings["statusLine"] = line
         save()
     print(f"Installed the njrNotch status line in {path}")
-    print("Model and context left appear in the notch after your next message in Claude Code.")
+    if os.path.exists(legacy):
+        os.remove(legacy)
+    print("Context window numbers appear in the notch after your next message in Claude Code.")
 PY

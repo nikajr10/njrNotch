@@ -6,42 +6,51 @@
 import AppKit
 import SwiftUI
 
-/// Live activity shown on both sides of the closed notch.
-enum ClosedActivity: Equatable {
-    case spotify(artwork: URL?, isPlaying: Bool)
-    case claude(AgentStatus)
-
-    var tab: NotchTab {
-        if case .spotify = self { .spotify } else { .claudeCode }
+/// What the closed notch shows on each side.
+struct ClosedActivity: Equatable {
+    enum Side: Hashable {
+        case artwork, equalizer, paused
+        /// The Claude logo with its state on it (ring, check or alert badge).
+        case logo(AgentStatus)
+        /// Spinner, check mark or alert icon.
+        case state(AgentStatus)
     }
 
-    /// Claude needing permission always wins; otherwise the source picked in Settings,
-    /// falling back to whichever one has something to show.
-    static func pick(spotify: ClosedActivity?, spotifyChanged: Date,
-                     claude: ClosedActivity?, claudeChanged: Date, source: ClosedSource) -> ClosedActivity? {
-        if claude == .claude(.needsPermission) { return claude }
-        guard let spotify, let claude else { return claude ?? spotify }
-        return switch source {
-        case .spotify: spotify
-        case .claudeCode: claude
-        case .auto: spotifyChanged > claudeChanged ? spotify : claude
+    var left: Side
+    var right: Side
+    /// The tab hovering opens.
+    var tab: NotchTab
+
+    /// - music: nil = no music, true = playing, false = paused recently.
+    /// - claude: nil = no active session.
+    /// Music keeps the left side whenever it's there, so the sides never swap back and forth.
+    static func pick(music: Bool?, claude: AgentStatus?, source: ClosedSource) -> ClosedActivity? {
+        let music = source == .claudeCode ? nil : music
+        let claude = source == .spotify ? nil : claude
+        switch (music, claude) {
+        case (_?, let status?):
+            return ClosedActivity(left: .artwork, right: .logo(status),
+                                  tab: status == .needsPermission ? .claudeCode : .spotify)
+        case (let playing?, nil):
+            return ClosedActivity(left: .artwork, right: playing ? .equalizer : .paused, tab: .spotify)
+        case (nil, let status?):
+            return ClosedActivity(left: .logo(status), right: .state(status), tab: .claudeCode)
+        case (nil, nil):
+            return nil
         }
     }
 
     #if DEBUG
-    /// Runnable check for the priority rules; called once at launch in debug builds.
+    /// Runnable check for the layout rules; called once at launch in debug builds.
     static func selfCheck() {
-        let music = ClosedActivity.spotify(artwork: nil, isPlaying: true)
-        let early = Date(timeIntervalSince1970: 0), late = Date(timeIntervalSince1970: 1)
-        assert(pick(spotify: music, spotifyChanged: late, claude: .claude(.needsPermission), claudeChanged: early,
-                    source: .spotify) == .claude(.needsPermission))
-        assert(pick(spotify: music, spotifyChanged: early, claude: .claude(.working), claudeChanged: late,
-                    source: .spotify) == music)
-        assert(pick(spotify: music, spotifyChanged: early, claude: .claude(.working), claudeChanged: late,
-                    source: .auto) == .claude(.working))
-        assert(pick(spotify: nil, spotifyChanged: late, claude: .claude(.done), claudeChanged: early,
-                    source: .spotify) == .claude(.done))
-        assert(pick(spotify: nil, spotifyChanged: late, claude: nil, claudeChanged: early, source: .auto) == nil)
+        assert(pick(music: true, claude: nil, source: .auto) == .init(left: .artwork, right: .equalizer, tab: .spotify))
+        assert(pick(music: false, claude: nil, source: .auto)?.right == .paused)
+        assert(pick(music: true, claude: .working, source: .auto) == .init(left: .artwork, right: .logo(.working), tab: .spotify))
+        assert(pick(music: false, claude: .needsPermission, source: .auto)?.tab == .claudeCode)
+        assert(pick(music: nil, claude: .done, source: .auto) == .init(left: .logo(.done), right: .state(.done), tab: .claudeCode))
+        assert(pick(music: true, claude: .working, source: .spotify)?.right == .equalizer)
+        assert(pick(music: true, claude: .working, source: .claudeCode)?.left == .logo(.working))
+        assert(pick(music: nil, claude: nil, source: .auto) == nil)
     }
     #endif
 }
@@ -51,6 +60,7 @@ enum ClosedActivity: Equatable {
 struct ClosedNotchView: View {
     let notchSize: CGSize
     let activity: ClosedActivity?
+    let spotify: SpotifyController
 
     private var prefs: Preferences { AppSettings.shared.prefs }
 
@@ -58,15 +68,11 @@ struct ClosedNotchView: View {
         let ear = notchSize.height
         HStack(spacing: 0) {
             if let activity {
-                left(activity, ear: ear)
-                    .frame(width: ear, height: ear)
-                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+                side(activity.left, ear: ear)
             }
             Color.clear.frame(width: notchSize.width)
             if let activity {
-                right(activity, ear: ear)
-                    .frame(width: ear, height: ear)
-                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+                side(activity.right, ear: ear)
             }
         }
         .frame(height: notchSize.height)
@@ -75,55 +81,58 @@ struct ClosedNotchView: View {
         .accessibilityLabel(label)
     }
 
-    @ViewBuilder
-    private func left(_ activity: ClosedActivity, ear: CGFloat) -> some View {
-        switch activity {
-        case .spotify(let artwork, _):
-            if prefs.closedShowsArt, let artwork {
-                AsyncImage(url: artwork) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.white.opacity(0.12)
-                }
-                .frame(width: (ear * 0.62).rounded(), height: (ear * 0.62).rounded())
-                .clipShape(RoundedRectangle(cornerRadius: ear * 0.14, style: .continuous))
-            } else {
-                Image(systemName: "music.note")
-                    .font(.system(size: (ear * 0.4).rounded(), weight: .semibold))
-                    .foregroundStyle(.green)
-            }
-        case .claude:
-            Image(systemName: "sparkle")
-                .font(.system(size: (ear * 0.42).rounded(), weight: .semibold))
-                .foregroundStyle(Color(hex: "#D97757"))
-        }
+    private func side(_ side: ClosedActivity.Side, ear: CGFloat) -> some View {
+        content(side, ear: ear)
+            .frame(width: ear, height: ear)
+            .id(side) // a new kind of content scales in rather than morphing
+            .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
     @ViewBuilder
-    private func right(_ activity: ClosedActivity, ear: CGFloat) -> some View {
-        switch activity {
-        case .spotify(_, let isPlaying):
-            if isPlaying && prefs.closedShowsEqualizer {
-                EqualizerBars(color: NSColor(prefs.accent))
+    private func content(_ side: ClosedActivity.Side, ear: CGFloat) -> some View {
+        switch side {
+        case .artwork:
+            if prefs.closedShowsArt, let artwork = spotify.artwork {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: (ear * 0.62).rounded(), height: (ear * 0.62).rounded())
+                    .clipShape(RoundedRectangle(cornerRadius: ear * 0.14, style: .continuous))
+            } else {
+                Image(systemName: "music.note")
+                    .font(.system(size: (ear * 0.4).rounded(), weight: .semibold))
+                    .foregroundStyle(spotify.accent)
+            }
+        case .equalizer:
+            if prefs.closedShowsEqualizer {
+                EqualizerBars(color: NSColor(spotify.accent))
                     .frame(width: (ear * 0.5).rounded(), height: (ear * 0.42).rounded())
             } else {
-                Image(systemName: isPlaying ? "play.fill" : "pause.fill")
+                Image(systemName: "play.fill")
                     .font(.system(size: (ear * 0.34).rounded()))
                     .foregroundStyle(.secondary)
             }
-        case .claude(.working):
+        case .paused:
+            Image(systemName: "pause.fill")
+                .font(.system(size: (ear * 0.34).rounded()))
+                .foregroundStyle(.secondary)
+        case .logo(let status):
+            ClaudeLogoBadge(status: status, size: (ear * 0.66).rounded(), animates: prefs.closedLogoAnimates)
+        case .state(.working):
             Spinner()
-        case .claude(let status):
-            AgentStatusIcon(status: status, size: (ear * 0.42).rounded())
+        case .state(let status):
+            AgentStatusIcon(status: status, size: (ear * 0.42).rounded(), animates: prefs.closedLogoAnimates)
         }
     }
 
     private var label: String {
-        switch activity {
-        case .spotify(_, let isPlaying): isPlaying ? "Spotify playing" : "Spotify paused"
-        case .claude(let status): "Claude Code \(status.label)"
-        case nil: "Notch"
+        guard let activity else { return "Notch" }
+        let music = activity.left == .artwork ? (activity.right == .paused ? "Spotify paused" : "Spotify playing") : nil
+        let claude: String? = switch (activity.left, activity.right) {
+        case (.logo(let status), _), (_, .logo(let status)): "Claude Code \(status.label)"
+        default: nil
         }
+        return [music, claude].compactMap { $0 }.joined(separator: ", ")
     }
 }
 

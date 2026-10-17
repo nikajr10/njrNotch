@@ -19,7 +19,7 @@ struct ClaudeCodeSettings: View {
             Section {
                 integration("Hooks", detail: "Live status, permission prompts, sounds",
                             script: "claude-hooks", isInstalled: hooksInstalled)
-                integration("Status line (optional)", detail: "Model name and context window left",
+                integration("Status line", detail: "Context window: total, used and remaining tokens",
                             script: "statusline", isInstalled: statusLineInstalled)
                 if !output.isEmpty {
                     Text(output).font(.caption.monospaced()).textSelection(.enabled)
@@ -27,18 +27,27 @@ struct ClaudeCodeSettings: View {
             } header: {
                 Text("Connect to Claude Code")
             } footer: {
-                Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged.")
+                Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged. Without the status line, context numbers are an estimate from the session's log.")
+            }
+            Section("Colour") {
+                AccentSetting(automatic: "Default (Claude orange)", hex: $settings.prefs.claudeAccentHex,
+                              current: ClaudeLogo.orange)
             }
             Section {
                 Toggle("Current task (your last prompt)", isOn: $settings.prefs.showTask)
                 Toggle("What it's doing now", isOn: $settings.prefs.showActivity)
                 Toggle("Session time", isOn: $settings.prefs.showElapsed)
                 Toggle("Summary of the last result", isOn: $settings.prefs.showLastResult)
-                Toggle("Tokens (session and today)", isOn: $settings.prefs.showTokens)
             } header: {
                 Text("Details")
             } footer: {
-                Text("Model and effort come from the session's log. Context left needs the status line. Anything Claude Code doesn't report stays hidden.")
+                Text("Model and effort come from the status line or the session's log. Anything Claude Code doesn't report stays hidden.")
+            }
+            Section("Tokens") {
+                Toggle("Total tokens (context window size)", isOn: $settings.prefs.showTokenTotal)
+                Toggle("Tokens used", isOn: $settings.prefs.showTokenUsed)
+                Toggle("Remaining tokens", isOn: $settings.prefs.showTokenRemaining)
+                Toggle("Summary line (total, used, remaining, today)", isOn: $settings.prefs.showTokenSpent)
             }
             Section {
                 Toggle("Answer permission requests in the notch", isOn: $settings.prefs.answerPermissionsInNotch)

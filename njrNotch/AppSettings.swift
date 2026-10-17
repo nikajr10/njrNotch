@@ -13,6 +13,10 @@ struct Preferences: Codable, Equatable {
     var openDelay = 0.0                // seconds the pointer rests on the notch before it opens
     var screenName = ""                // "" = automatic (the notch screen)
     var showMenuBarIcon = true
+    var hotKeyOn = true                // global shortcut that opens and closes the notch
+    var hotKeyCode = 45                // kVK_ANSI_N
+    var hotKeyModifiers = 6144         // Carbon controlKey | optionKey
+    var hotKeyLabel = "⌃⌥N"
     // Appearance
     var accentHex = "#0A84FF"
     var background = NotchBackground.black
@@ -32,6 +36,7 @@ struct Preferences: Codable, Equatable {
     var showLike = true
     var showVisualizer = true
     var spotifyClientID = ""
+    var spotifyAccentHex = ""          // "" = taken from the album art
     // Claude Code
     var claudeCodeEnabled = true
     var answerPermissionsInNotch = true
@@ -39,12 +44,17 @@ struct Preferences: Codable, Equatable {
     var showActivity = true
     var showElapsed = true
     var showLastResult = true
-    var showTokens = true
+    var claudeAccentHex = ""           // "" = Claude orange
+    var showTokenTotal = true
+    var showTokenUsed = true
+    var showTokenRemaining = true
+    var showTokenSpent = true          // the "session / today" line under the bar
     // Closed notch live activity
-    var showClosedIndicator = true
+    var showClosedIndicator = true     // previews beside the closed notch; also in the notch's right-click menu
     var closedSource = ClosedSource.auto
     var closedShowsArt = true
     var closedShowsEqualizer = true
+    var closedLogoAnimates = true      // ring and badges on the Claude logo move
     // Pop-down notifications
     var popOn = true
     var popSong = true
@@ -67,7 +77,7 @@ enum NotchBackground: String, Codable, CaseIterable {
     case black, glass, custom
 }
 
-/// What the closed notch shows when Spotify and Claude Code are both active.
+/// What the closed notch shows: Auto follows the rules in `ClosedActivity.pick`.
 enum ClosedSource: String, Codable, CaseIterable {
     case spotify, claudeCode, auto
 }

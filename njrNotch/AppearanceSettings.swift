@@ -7,16 +7,20 @@ import SwiftUI
 
 struct AppearanceSettings: View {
     @Bindable private var settings = AppSettings.shared
+    /// Off in the notch itself, which is its own preview.
+    var showsPreview = true
 
     private static let accentPresets = ["#0A84FF", "#BF5AF2", "#FF375F", "#FF9F0A", "#30D158", "#64D2FF", "#D97757"]
 
     var body: some View {
         VStack(spacing: 0) {
-            NotchPreview()
-                .frame(height: 220)
-            Divider()
+            if showsPreview {
+                NotchPreview()
+                    .frame(height: 220)
+                Divider()
+            }
             Form {
-                Section("Colour") {
+                Section {
                     LabeledContent("Accent colour") {
                         HStack(spacing: 8) {
                             ForEach(Self.accentPresets, id: \.self) { hex in
@@ -34,6 +38,10 @@ struct AppearanceSettings: View {
                     if settings.prefs.background == .custom {
                         ColorPicker("Background colour", selection: colour(\.customBackgroundHex), supportsOpacity: false)
                     }
+                } header: {
+                    Text("Colour")
+                } footer: {
+                    Text("The Spotify and Claude Code tabs have their own accent colour in their sections.")
                 }
                 Section {
                     slider("Open width", value: $settings.prefs.expandedWidth, in: 360...600, step: 10, unit: "pt")

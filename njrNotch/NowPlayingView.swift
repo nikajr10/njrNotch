@@ -18,13 +18,20 @@ struct NowPlayingView: View {
         VStack(spacing: prefs.compactLayout ? 6 : 10) {
             HStack(spacing: 12) {
                 if prefs.showAlbumArt {
-                    AsyncImage(url: track.artworkURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color.primary.opacity(0.1)
+                    Group {
+                        if let artwork = spotify.artwork {
+                            Image(nsImage: artwork).resizable().scaledToFill()
+                        } else {
+                            Color.primary.opacity(0.1)
+                        }
                     }
                     .frame(width: art, height: art)
                     .clipShape(RoundedRectangle(cornerRadius: art * 0.18))
+                    .contentShape(RoundedRectangle(cornerRadius: art * 0.18))
+                    .onTapGesture(perform: spotify.showApp)
+                    .help("Open Spotify")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel("Open Spotify")
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title).font(.notch(13, weight: .semibold))
@@ -35,7 +42,7 @@ struct NowPlayingView: View {
                 .lineLimit(1)
                 Spacer(minLength: 4)
                 if prefs.showVisualizer {
-                    Visualizer(isPlaying: spotify.isPlaying)
+                    Visualizer(isPlaying: spotify.isPlaying, color: spotify.accent)
                 }
             }
 
@@ -48,7 +55,7 @@ struct NowPlayingView: View {
                 slot(prefs.showShuffle) {
                     control("shuffle", label: spotify.isShuffling ? "Shuffle on" : "Shuffle off",
                             action: spotify.toggleShuffle)
-                        .foregroundStyle(spotify.isShuffling ? prefs.accent : .secondary)
+                        .foregroundStyle(spotify.isShuffling ? spotify.accent : .secondary)
                 }
                 control("backward.fill", label: "Previous", action: spotify.previous)
                 control(spotify.isPlaying ? "pause.fill" : "play.fill",
@@ -75,7 +82,7 @@ struct NowPlayingView: View {
                 SettingsWindow.show(.spotify)
             }
         }
-        .foregroundStyle(liked ? prefs.accent : .secondary)
+        .foregroundStyle(liked ? spotify.accent : .secondary)
         .disabled(!spotify.canLike)
     }
 
@@ -118,7 +125,7 @@ private struct SongTimeline: View {
         let fraction = position / spotify.duration
         let isActive = isHovering || scrub != nil
         return GeometryReader { geometry in
-            CapsuleBar(fraction: fraction, color: AppSettings.shared.prefs.accent, height: isActive ? 6 : 4)
+            CapsuleBar(fraction: fraction, color: spotify.accent, height: isActive ? 6 : 4)
                 .overlay(alignment: .leading) {
                     if isActive {
                         Circle().fill(.primary).frame(width: 10, height: 10)
@@ -156,6 +163,7 @@ private struct SongTimeline: View {
 /// Bars that bounce while music plays. Decoration only: real audio levels need screen-recording permission.
 struct Visualizer: View {
     let isPlaying: Bool
+    let color: Color
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: !isPlaying)) { context in
@@ -168,7 +176,7 @@ struct Visualizer: View {
             }
             .frame(height: 14)
         }
-        .foregroundStyle(AppSettings.shared.prefs.accent)
+        .foregroundStyle(color)
         .accessibilityHidden(true)
     }
 }
