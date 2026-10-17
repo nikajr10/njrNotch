@@ -10,10 +10,18 @@ import SwiftUI
 @main
 struct njrNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Bindable private var settings = AppSettings.shared
 
     // No default window: the notch panel is created by AppDelegate.
     var body: some Scene {
-        Settings { EmptyView() }
+        MenuBarExtra("njrNotch", systemImage: "rectangle.topthird.inset.filled",
+                     isInserted: $settings.prefs.showMenuBarIcon) {
+            Button("Settings…") { SettingsWindow.show() }
+                .keyboardShortcut(",")
+            Divider()
+            Button("Quit njrNotch") { NSApp.terminate(nil) }
+                .keyboardShortcut("q")
+        }
     }
 }
 
@@ -24,16 +32,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.placeAtTopCentre()
         panel.orderFrontRegardless()
 
-        // Re-centre when displays are plugged in, removed or rearranged.
+        // Re-place when displays change, or when a setting (screen, notch size) changes.
         NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(screensChanged),
-            name: NSApplication.didChangeScreenParametersNotification,
-            object: nil
+            self, selector: #selector(reposition),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(reposition),
+            name: UserDefaults.didChangeNotification, object: nil
         )
     }
 
-    @objc private func screensChanged() {
+    /// Opening the app again (Finder, Spotlight) shows Settings, even with the menu bar icon hidden.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        SettingsWindow.show()
+        return true
+    }
+
+    @objc private func reposition() {
         panel.placeAtTopCentre()
     }
 }
