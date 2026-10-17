@@ -54,7 +54,7 @@ struct Preferences: Codable, Equatable {
     var closedShowsArt = true
     var closedShowsEqualizer = true
     var closedLogoAnimates = true      // ring and badges on the Claude logo move
-    var idleHidesAfter = 5.0           // seconds paused music or finished Claude stays beside the closed notch
+    var idleHidesAfter = 2.0           // seconds paused music or finished Claude stays beside the closed notch
     // Pop-down notifications
     var popOn = true
     var popSong = true
