@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds njrNotch for release (hardened runtime) and packs it into dist/njrNotch-<version>.dmg.
+# Builds njrNotch for release (hardened runtime) and packs it into dist/njrNotch.dmg. The name has no
+# version, so the README's releases/latest/download/njrNotch.dmg link always gets the newest release.
 #
 #   ./scripts/make-dmg.sh                      ad-hoc signed (no Apple Developer account needed)
 #   SIGN_IDENTITY="Developer ID Application: …" ./scripts/make-dmg.sh   signed for notarization
@@ -26,6 +27,6 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Co
 STAGE=$(mktemp -d)
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "njrNotch" -srcfolder "$STAGE" -ov -format UDZO "dist/njrNotch-$VERSION.dmg" >/dev/null
+hdiutil create -volname "njrNotch" -srcfolder "$STAGE" -ov -format UDZO "dist/njrNotch.dmg" >/dev/null
 rm -rf "$STAGE"
-shasum -a 256 "dist/njrNotch-$VERSION.dmg"
+echo "njrNotch $VERSION"; shasum -a 256 "dist/njrNotch.dmg"
