@@ -6,8 +6,7 @@
 import SwiftUI
 
 struct AboutSettings: View {
-    /// Change this if the repository lives somewhere else.
-    static let repository = URL(string: "https://github.com/Bashistha1307/njrNotch")!
+    static let repository = URL(string: "https://github.com/nikajr10/njrNotch")!
 
     var body: some View {
         let info = Bundle.main.infoDictionary ?? [:]
