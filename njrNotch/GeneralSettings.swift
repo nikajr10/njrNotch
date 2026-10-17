@@ -47,6 +47,14 @@ struct GeneralSettings: View {
                     Toggle("Album art", isOn: $settings.prefs.closedShowsArt)
                     Toggle("Equaliser while playing", isOn: $settings.prefs.closedShowsEqualizer)
                     Toggle("Animate Claude's state on the logo", isOn: $settings.prefs.closedLogoAnimates)
+                    LabeledContent("Hide when paused or idle after") {
+                        HStack {
+                            Slider(value: $settings.prefs.idleHidesAfter, in: 1...60, step: 1)
+                            Text("\(Int(settings.prefs.idleHidesAfter)) s")
+                                .monospacedDigit()
+                                .frame(width: 50, alignment: .trailing)
+                        }
+                    }
                 }
                 .disabled(!settings.prefs.showClosedIndicator)
             } header: {

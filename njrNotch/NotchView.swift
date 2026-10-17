@@ -17,11 +17,10 @@ struct NotchView: View {
     @Bindable private var state = NotchState.shared
     @Bindable private var settings = AppSettings.shared
     @State private var isFinishPulse = false
-    /// Paused longer than `pausedShowsFor`: the closed notch stops showing the song.
+    /// Paused longer than `idleHidesAfter`: the closed notch stops showing the song.
     @State private var isMusicStale = false
     @State private var hoverDelay: Task<Void, Never>?
 
-    private static let pausedShowsFor: Duration = .seconds(10 * 60)
 
     private var prefs: Preferences { AppSettings.shared.prefs }
     private var spring: Animation { .spring(response: prefs.animationDuration, dampingFraction: 0.8) }
@@ -101,13 +100,13 @@ struct NotchView: View {
         .task(id: agent.finishCount) {
             guard agent.finishCount > 0 else { return }
             isFinishPulse = true
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(prefs.idleHidesAfter))
             isFinishPulse = false
         }
         .task(id: "\(spotify.isPlaying) \(spotify.track?.uri ?? "")") {
             isMusicStale = false
             guard !spotify.isPlaying else { return }
-            try? await Task.sleep(for: Self.pausedShowsFor)
+            try? await Task.sleep(for: .seconds(prefs.idleHidesAfter))
             if !Task.isCancelled { isMusicStale = true }
         }
     }
