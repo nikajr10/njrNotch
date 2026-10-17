@@ -4,6 +4,7 @@
 # for the notch (context window size and use, model, effort), then runs the status line you had before (if any)
 # with the same input, so your terminal looks exactly as it did. Installed by install-statusline.sh.
 
+umask 077              # the saved JSON holds paths and the session name: readable by you only
 input=$(cat; echo x)   # the x keeps trailing newlines, so your status line gets the exact input
 input=${input%x}
 out="$HOME/.claude/njrnotch-session.json"

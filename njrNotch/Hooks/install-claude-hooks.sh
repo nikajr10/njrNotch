@@ -9,6 +9,7 @@
 #   ./install-claude-hooks.sh               install / update
 #   ./install-claude-hooks.sh --uninstall   remove (same as ./uninstall-claude-hooks.sh)
 set -euo pipefail
+umask 077   # backups and rewritten settings are readable by you only
 
 SETTINGS="$HOME/.claude/settings.json"
 URL="http://127.0.0.1:47823/claude"   # must match ClaudeCodeAdapter.hookURL

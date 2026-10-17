@@ -64,10 +64,13 @@ final class AgentMonitor {
     // MARK: - Events
 
     /// The raw JSON of each hook event, the first time it arrives, to see which fields exist.
+    /// Debug builds only: payloads hold prompts, commands and file paths.
     private func logOnce(_ payload: [String: Any], raw: Data) {
+        #if DEBUG
         let name = payload["hook_event_name"] as? String ?? "?"
         guard loggedEvents.insert(name).inserted else { return }
         print("njrNotch: \(name) hook JSON (logged once): \(String(decoding: raw, as: UTF8.self))")
+        #endif
     }
 
     private func receive(path: String, payload: [String: Any], reply: HookReply) {

@@ -20,12 +20,22 @@ final class StatusLine {
         var usedPercent: Double?
     }
 
+    /// Plan usage limits, account-wide, as of the latest status line update.
+    nonisolated struct Limits: Equatable {
+        /// 0...100
+        var fiveHourPercent: Double?
+        var fiveHourResets: Date?
+        var weekPercent: Double?
+        var weekResets: Date?
+    }
+
     static let shared = StatusLine()
     static let file = ClaudeHooks.home.appendingPathComponent("njrnotch-session.json")
     private static let windowsKey = "contextWindows"
 
     /// By Claude Code session id. The file holds one session at a time, so this collects them.
     private(set) var sessions: [String: Info] = [:]
+    private(set) var limits: Limits?
 
     @ObservationIgnored private var watcher: DispatchSourceFileSystemObject?
     @ObservationIgnored private var lastModified: Date?
@@ -57,16 +67,34 @@ final class StatusLine {
         guard modified != lastModified else { return }
         lastModified = modified
         guard let data = try? Data(contentsOf: Self.file), let (id, info, modelID) = Self.parse(data) else { return }
+        #if DEBUG // the JSON holds paths and the session name
         if !hasLoggedJSON {
             hasLoggedJSON = true
             print("njrNotch: status line JSON (logged once): \(String(decoding: data, as: UTF8.self))")
         }
+        #endif
         if let modelID, let size = info.contextSize, Self.knownWindow(model: modelID) != size {
             var windows = UserDefaults.standard.dictionary(forKey: Self.windowsKey) ?? [:]
             windows[modelID] = size
             UserDefaults.standard.set(windows, forKey: Self.windowsKey)
         }
         if sessions[id] != info { sessions[id] = info }
+        let limits = Self.limits(data)
+        if limits != nil, self.limits != limits { self.limits = limits }
+    }
+
+    /// `rate_limits` from one status line update; nil when Claude Code doesn't send them (e.g. API key use).
+    nonisolated static func limits(_ data: Data) -> Limits? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let limits = json["rate_limits"] as? [String: Any] else { return nil }
+        func window(_ key: String) -> (Double?, Date?) {
+            let entry = limits[key] as? [String: Any]
+            return ((entry?["used_percentage"] as? NSNumber)?.doubleValue,
+                    (entry?["resets_at"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) })
+        }
+        let (five, fiveResets) = window("five_hour"), (week, weekResets) = window("seven_day")
+        guard five != nil || week != nil else { return nil }
+        return Limits(fiveHourPercent: five, fiveHourResets: fiveResets, weekPercent: week, weekResets: weekResets)
     }
 
     /// The session id, the fields njrNotch shows, and the model id from one status line update. Ignores cost.
@@ -107,6 +135,9 @@ final class StatusLine {
         let bare = parse(Data(#"{"session_id": "x", "context_window": {"used_percentage": null}}"#.utf8))
         assert(bare?.1 == Info())
         assert(parse(Data(#"{"model": {}}"#.utf8)) == nil && parse(Data("not json".utf8)) == nil)
+        let rate = limits(Data(#"{"rate_limits": {"five_hour": {"used_percentage": 17, "resets_at": 1792280400}, "seven_day": {"used_percentage": 19}}}"#.utf8))
+        assert(rate == Limits(fiveHourPercent: 17, fiveHourResets: Date(timeIntervalSince1970: 1792280400), weekPercent: 19))
+        assert(limits(Data(#"{"rate_limits": {}}"#.utf8)) == nil && limits(Data("{}".utf8)) == nil)
     }
     #endif
 }

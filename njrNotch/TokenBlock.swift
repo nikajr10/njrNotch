@@ -52,8 +52,8 @@ struct TokenBlock: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            if prefs.showTokenSpent, let spent = summary(context) {
-                Text(spent)
+            if prefs.showUsageLimits, let limits = StatusLine.shared.limits {
+                limitsLine(limits)
                     .font(.notch(10).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -98,18 +98,23 @@ struct TokenBlock: View {
         }
     }
 
-    /// "Total 1M · Used 250K · Remaining 750K   Today 25.8M": what's there, nothing made up.
-    private func summary(_ context: Context?) -> String? {
-        var parts: [String] = []
-        if let context {
-            let mark = context.isEstimate ? "~" : ""
-            parts.append("Total \(mark)\(Self.format(context.total)) · Used \(mark)\(Self.format(context.used))"
-                         + " · Remaining \(mark)\(Self.format(max(0, context.total - context.used)))")
+    /// "5-hour limit 17% · resets 16:00   Weekly 19% · resets Thu 09:00", straight from Claude Code.
+    private func limitsLine(_ limits: StatusLine.Limits) -> Text {
+        var line = Text("")
+        if let percent = limits.fiveHourPercent {
+            line = line + Text("5-hour limit ") + Self.percent(percent)
+                + Text(limits.fiveHourResets.map { " · resets \($0.formatted(date: .omitted, time: .shortened))" } ?? "")
         }
-        if let today {
-            parts.append("Today \(Self.format(today.total))")
+        if let percent = limits.weekPercent {
+            if limits.fiveHourPercent != nil { line = line + Text("   ") }
+            line = line + Text("Weekly ") + Self.percent(percent)
+                + Text(limits.weekResets.map { " · resets \($0.formatted(.dateTime.weekday(.abbreviated).hour().minute()))" } ?? "")
         }
-        return parts.isEmpty ? nil : parts.joined(separator: "   ")
+        return line
+    }
+
+    private static func percent(_ value: Double) -> Text {
+        Text("\(Int(value.rounded()))%").foregroundStyle(value > 70 ? color(usedPercent: value) : .primary)
     }
 
     static func format(_ tokens: Int) -> String {

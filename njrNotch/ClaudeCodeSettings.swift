@@ -47,7 +47,7 @@ struct ClaudeCodeSettings: View {
                 Toggle("Total tokens (context window size)", isOn: $settings.prefs.showTokenTotal)
                 Toggle("Tokens used", isOn: $settings.prefs.showTokenUsed)
                 Toggle("Remaining tokens", isOn: $settings.prefs.showTokenRemaining)
-                Toggle("Summary line (total, used, remaining, today)", isOn: $settings.prefs.showTokenSpent)
+                Toggle("5-hour and weekly limits", isOn: $settings.prefs.showUsageLimits)
             }
             Section {
                 Toggle("Answer permission requests in the notch", isOn: $settings.prefs.answerPermissionsInNotch)

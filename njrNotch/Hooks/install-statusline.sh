@@ -10,6 +10,7 @@
 #   ./install-statusline.sh               install / update
 #   ./install-statusline.sh --uninstall   remove (same as ./uninstall-statusline.sh)
 set -euo pipefail
+umask 077   # backups and rewritten settings are readable by you only
 
 SETTINGS="$HOME/.claude/settings.json"
 SCRIPT="$HOME/.claude/njrnotch-statusline.sh"

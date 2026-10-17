@@ -50,6 +50,7 @@ final class AgentListener {
             if let data { buffer.append(data) }
 
             if let request = Self.parse(buffer) {
+                guard Self.isTrusted(buffer, port: self?.port ?? 0) else { return connection.cancel() }
                 let reply = HookReply(connection: connection)
                 Self.watchForClose(connection, reply: reply)
                 self?.handler?(request, reply)
@@ -66,6 +67,20 @@ final class AgentListener {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { _, _, isComplete, error in
             if isComplete || error != nil { reply.clientClosed() }
         }
+    }
+
+    /// Hooks come from Claude Code and the sign-in redirect from a browser tab, never from a script on a web page.
+    /// Browsers add `Origin` to script requests (a top-level navigation like the redirect has none), and a
+    /// DNS-rebinding page names its own host. Either is refused, so websites can't post fake events or prompts.
+    nonisolated static func isTrusted(_ request: Data, port: UInt16) -> Bool {
+        guard let headerEnd = request.range(of: Data("\r\n\r\n".utf8)) else { return false }
+        let headers = String(decoding: request[..<headerEnd.lowerBound], as: UTF8.self)
+            .components(separatedBy: "\r\n").dropFirst()
+            .map { $0.lowercased() }
+        if headers.contains(where: { $0.hasPrefix("origin:") }) { return false }
+        guard let host = headers.first(where: { $0.hasPrefix("host:") }) else { return true }
+        let value = host.dropFirst("host:".count).trimmingCharacters(in: .whitespaces)
+        return value == "127.0.0.1:\(port)" || value == "localhost:\(port)"
     }
 
     /// Path, query and body once the headers and `Content-Length` bytes have all arrived.
@@ -90,6 +105,10 @@ final class AgentListener {
         assert(parse(Data("GET /callback?code=a&state=b HTTP/1.1\r\nHost: x\r\n\r\n".utf8))?.query.count == 2)
         assert(parse(Data("POST / HTTP/1.1\r\ncontent-length: 5\r\n\r\n{}".utf8)) == nil)
         assert(parse(Data("POST / HTTP/1.1\r\nContent-Length: 2\r\n".utf8)) == nil)
+        let hook = "POST /claude HTTP/1.1\r\nHost: 127.0.0.1:47823\r\nContent-Length: 2\r\n\r\n{}"
+        assert(isTrusted(Data(hook.utf8), port: 47823))
+        assert(!isTrusted(Data(hook.replacingOccurrences(of: "Host:", with: "Origin: https://evil.example\r\nHost:").utf8), port: 47823))
+        assert(!isTrusted(Data(hook.replacingOccurrences(of: "127.0.0.1:47823", with: "evil.example:47823").utf8), port: 47823))
     }
     #endif
 }

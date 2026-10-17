@@ -47,7 +47,7 @@ struct Preferences: Codable, Equatable {
     var showTokenTotal = true
     var showTokenUsed = true
     var showTokenRemaining = true
-    var showTokenSpent = true          // the "session / today" line under the bar
+    var showUsageLimits = true         // 5-hour and weekly limit line under the bar
     // Closed notch live activity
     var showClosedIndicator = true     // previews beside the closed notch; also in the notch's right-click menu
     var closedSource = ClosedSource.auto
