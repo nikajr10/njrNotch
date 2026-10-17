@@ -20,13 +20,13 @@ struct Preferences: Codable, Equatable {
     // Appearance
     var accentHex = "#0A84FF"
     var background = NotchBackground.black
-    var customBackgroundHex = "#1C1C1E"
-    var textScale = 1.0
-    var cornerRadius = 24.0
-    var expandedWidth = 440.0
-    var expandedHeight = 340.0
+    var customBackgroundHex = "#FFFFFF"
+    var textScale = 0.9
+    var cornerRadius = 40.0
+    var expandedWidth = 380.0
+    var expandedHeight = 460.0
     var animationDuration = 0.35
-    var tabBarShowsLabels = false
+    var tabBarShowsLabels = true
     var compactLayout = false
     // Spotify
     var showSpotify = true
@@ -61,15 +61,15 @@ struct Preferences: Codable, Equatable {
     var popDone = true
     var popPermission = true
     var popSessionEnded = true
-    var popDuration = 4.0              // seconds on screen
+    var popDuration = 3.0              // seconds on screen
     var popAnimation = 0.4             // spring response, seconds
     var popKeepWhileHovering = true
     // Sounds: a system sound name, or an absolute path to the user's own file
     var doneSoundOn = true
     var doneSound = "Glass"
     var permissionSoundOn = true
-    var permissionSound = "Ping"
-    var soundVolume = 0.8
+    var permissionSound = "Glass"
+    var soundVolume = 1.0
     var notificationsOn = false
 }
 
