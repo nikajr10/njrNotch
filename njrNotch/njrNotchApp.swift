@@ -10,18 +10,11 @@ import SwiftUI
 @main
 struct njrNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @Bindable private var settings = AppSettings.shared
 
-    // No default window: the notch panel is created by AppDelegate.
+    // No menu bar icon and no default window: the notch panel is created by AppDelegate, and Settings
+    // open from the notch (gear, right-click), the shortcut, or reopening the app.
     var body: some Scene {
-        MenuBarExtra("njrNotch", systemImage: "rectangle.topthird.inset.filled",
-                     isInserted: $settings.prefs.showMenuBarIcon) {
-            Button("Settings…") { SettingsWindow.show() }
-                .keyboardShortcut(",")
-            Divider()
-            Button("Quit njrNotch") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
-        }
+        Settings { EmptyView() }
     }
 }
 

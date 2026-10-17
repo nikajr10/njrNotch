@@ -12,7 +12,6 @@ struct Preferences: Codable, Equatable {
     var openOnClick = false
     var openDelay = 0.0                // seconds the pointer rests on the notch before it opens
     var screenName = ""                // "" = automatic (the notch screen)
-    var showMenuBarIcon = true
     var hotKeyOn = true                // global shortcut that opens and closes the notch
     var hotKeyCode = 45                // kVK_ANSI_N
     var hotKeyModifiers = 6144         // Carbon controlKey | optionKey
@@ -88,8 +87,8 @@ final class AppSettings {
     static let shared = AppSettings()
     private static let key = "preferences"
 
-    /// Writing an equal value does nothing. MenuBarExtra writes `isInserted` back on every scene
-    /// update, and without this check each write-back triggered the next: an endless update loop.
+    /// Writing an equal value does nothing, so bindings that write back the same value don't
+    /// trigger needless saves and updates.
     var prefs: Preferences {
         get {
             access(keyPath: \.prefs)

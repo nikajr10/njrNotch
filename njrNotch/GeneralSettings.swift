@@ -72,11 +72,8 @@ struct GeneralSettings: View {
                         Text(screen.localizedName).tag(screen.localizedName)
                     }
                 }
-                Toggle("Show menu bar icon", isOn: $settings.prefs.showMenuBarIcon)
-                if !settings.prefs.showMenuBarIcon {
-                    Text("To get back to Settings, right-click the notch, press \(settings.prefs.hotKeyLabel) and click the gear, or open njrNotch again from Finder or Spotlight.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                Text("njrNotch has no menu bar icon. To reach Settings, click the gear in the open notch, right-click the notch, press \(settings.prefs.hotKeyLabel), or open njrNotch again from Finder or Spotlight.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
