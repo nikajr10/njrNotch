@@ -67,62 +67,19 @@ struct ClaudeLogoBadge: View {
     }
 }
 
-/// Claude Code's busy sign from its terminal title: a half-filled circle in Claude orange that swaps sides
-/// every 1.5 s with the system's soft replace transition. Calm enough to sit in the corner of your eye
-/// (a 1 s hard flip read as blinking), still clearly alive. Core Animation runs the transition.
-struct BusyCircle: NSViewRepresentable {
+/// Claude Code's busy sign from its terminal title: a half-filled circle in Claude orange whose filled half
+/// swaps sides every 1.25 s, a hard blink inside the circle. One redraw per swap, so it costs next to nothing.
+struct BusyCircle: View {
     let size: CGFloat
     var animates = true
-    static let interval: TimeInterval = 1.5
+    static let interval: TimeInterval = 1.25
 
-    func makeNSView(context: Context) -> NSImageView {
-        let view = NSImageView()
-        view.contentTintColor = NSColor(ClaudeLogo.orange)
-        context.coordinator.view = view
-        return view
-    }
-
-    func updateNSView(_ view: NSImageView, context: Context) {
-        context.coordinator.configure(size: size, animates: animates)
-    }
-
-    static func dismantleNSView(_ view: NSImageView, coordinator: Coordinator) {
-        coordinator.timer?.invalidate()
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        weak var view: NSImageView?
-        var timer: Timer?
-        private var shown: (CGFloat, Bool)?
-        private var size: CGFloat = 0
-        private var isLeft = true
-
-        /// Only on a real change: restarting on every SwiftUI update would reset the rhythm.
-        func configure(size: CGFloat, animates: Bool) {
-            guard shown.map({ $0 != (size, animates) }) ?? true else { return }
-            shown = (size, animates)
-            self.size = size
-            isLeft = true
-            view?.image = image()
-            timer?.invalidate()
-            timer = nil
-            guard animates else { return }
-            timer = Timer.scheduledTimer(withTimeInterval: BusyCircle.interval, repeats: true) { [weak self] _ in
-                MainActor.assumeIsolated { self?.flip() }
-            }
-        }
-
-        private func flip() {
-            isLeft.toggle()
-            if let image = image() { view?.setSymbolImage(image, contentTransition: .replace) }
-        }
-
-        private func image() -> NSImage? {
-            NSImage(systemSymbolName: isLeft ? "circle.lefthalf.filled" : "circle.righthalf.filled",
-                    accessibilityDescription: "Working")?
-                .withSymbolConfiguration(.init(pointSize: size, weight: .semibold))
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: Self.interval)) { context in
+            let left = !animates || Int(context.date.timeIntervalSinceReferenceDate / Self.interval) % 2 == 0
+            Image(systemName: left ? "circle.lefthalf.filled" : "circle.righthalf.filled")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(ClaudeLogo.orange)
         }
     }
 }
