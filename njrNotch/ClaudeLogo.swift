@@ -67,8 +67,8 @@ struct ClaudeLogoBadge: View {
     }
 }
 
-/// A heart monitor trace: a beat runs across and fades out behind itself. Core Animation runs it,
-/// so the notch doesn't redraw every frame. `animates` off shows the whole trace, still.
+/// A heart monitor trace: the whole beat stays on screen, dim, and a bright pulse runs along it.
+/// Core Animation runs it, so the notch doesn't redraw every frame. `animates` off shows the trace, still.
 struct Heartbeat: NSViewRepresentable {
     let color: NSColor
     let animates: Bool
@@ -78,28 +78,32 @@ struct Heartbeat: NSViewRepresentable {
     func updateNSView(_ view: TraceView, context: Context) {
         view.trace.strokeColor = color.cgColor
         view.trace.shadowColor = color.cgColor
+        view.base.strokeColor = color.withAlphaComponent(0.3).cgColor
         view.setBeating(animates)
     }
 
     final class TraceView: NSView {
+        let base = CAShapeLayer()
         let trace = CAShapeLayer()
         /// (x, y) in 0...1, y up: flat, P wave, the QRS spike, T wave, flat.
         private static let points: [(CGFloat, CGFloat)] = [
             (0, 0.5), (0.2, 0.5), (0.26, 0.6), (0.32, 0.5), (0.4, 0.5), (0.45, 0.38),
-            (0.52, 0.98), (0.59, 0.04), (0.64, 0.5), (0.73, 0.5), (0.8, 0.66), (0.87, 0.5), (1, 0.5),
+            (0.52, 0.94), (0.59, 0.06), (0.64, 0.5), (0.73, 0.5), (0.8, 0.66), (0.87, 0.5), (1, 0.5),
         ]
 
         override init(frame: NSRect) {
             super.init(frame: frame)
             wantsLayer = true
-            trace.fillColor = nil
-            trace.lineWidth = 1.5
-            trace.lineCap = .round
-            trace.lineJoin = .round
-            trace.shadowOpacity = 0.9 // a soft glow, like a monitor screen
-            trace.shadowRadius = 2
+            for line in [base, trace] {
+                line.fillColor = nil
+                line.lineWidth = 1.2
+                line.lineCap = .round
+                line.lineJoin = .round
+                layer?.addSublayer(line)
+            }
+            trace.shadowOpacity = 0.8 // a soft glow, like a monitor screen
+            trace.shadowRadius = 1.5
             trace.shadowOffset = .zero
-            layer?.addSublayer(trace)
         }
 
         required init?(coder: NSCoder) { fatalError("not used") }
@@ -122,10 +126,12 @@ struct Heartbeat: NSViewRepresentable {
 
         override func layout() {
             super.layout()
-            trace.frame = bounds
             let path = CGMutablePath()
             path.addLines(between: Self.points.map { CGPoint(x: $0.0 * bounds.width, y: $0.1 * bounds.height) })
-            trace.path = path
+            for line in [base, trace] {
+                line.frame = bounds
+                line.path = path
+            }
         }
     }
 }

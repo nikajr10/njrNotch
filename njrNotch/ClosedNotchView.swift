@@ -120,7 +120,7 @@ struct ClosedNotchView: View {
             ClaudeLogoBadge(status: status, size: (ear * 0.66).rounded(), animates: prefs.closedLogoAnimates)
         case .state(.working):
             Heartbeat(color: NSColor(ClaudeLogo.orange), animates: prefs.closedLogoAnimates)
-                .frame(width: (ear * 0.72).rounded(), height: (ear * 0.5).rounded())
+                .frame(width: (ear * 0.62).rounded(), height: (ear * 0.36).rounded())
         case .state(let status):
             AgentStatusIcon(status: status, size: (ear * 0.42).rounded(), animates: prefs.closedLogoAnimates)
         }
