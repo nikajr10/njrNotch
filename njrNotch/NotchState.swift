@@ -16,6 +16,8 @@ final class NotchState {
     private(set) var isExpanded = false
     var tab = NotchTab.claudeCode
     private(set) var showsSettings = false
+    /// The page open in the notch's Settings; nil = the list.
+    var settingsSection: SettingsSection?
 
     private init() {}
 
@@ -44,7 +46,8 @@ final class NotchState {
     }
 
     /// Settings stay open when the pointer leaves, so the colour panel and menus can be used; Back closes them.
-    func openSettings() {
+    func openSettings(_ section: SettingsSection? = nil) {
+        settingsSection = section
         setExpanded(true)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showsSettings = true }
         // Key, so text fields and the shortcut recorder get typing. The panel never activates the app.
@@ -54,6 +57,7 @@ final class NotchState {
     func closeSettings() {
         guard showsSettings else { return }
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showsSettings = false }
+        settingsSection = nil
         // Hand typing back to the app you were using.
         NSWorkspace.shared.frontmostApplication?.activate()
     }

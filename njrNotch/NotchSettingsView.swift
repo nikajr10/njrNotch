@@ -10,10 +10,13 @@ import SwiftUI
 struct NotchSettingsView: View {
     /// The notch grows to at least this height for Settings.
     static let minHeight: CGFloat = 420
-    private static let sections: [SettingsSection] = [.appearance, .spotify, .claudeCode, .notifications, .sounds, .general]
+    private static let sections: [SettingsSection] = [.appearance, .spotify, .claudeCode, .notifications, .sounds, .updates, .general]
 
     let notchSize: CGSize
-    @State private var section: SettingsSection?
+    private var section: SettingsSection? {
+        get { NotchState.shared.settingsSection }
+        nonmutating set { NotchState.shared.settingsSection = newValue }
+    }
 
     private var prefs: Preferences { AppSettings.shared.prefs }
 
@@ -76,6 +79,14 @@ struct NotchSettingsView: View {
                                 .background(item.color.gradient, in: RoundedRectangle(cornerRadius: 6))
                             Text(item.title).font(.notch(13))
                             Spacer()
+                            if item == .updates, Updater.shared.hasUpdate {
+                                Text("New")
+                                    .font(.notch(11, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(.blue, in: Capsule())
+                            }
                             Image(systemName: "chevron.right")
                                 .font(.notch(11, weight: .semibold))
                                 .foregroundStyle(.tertiary)
