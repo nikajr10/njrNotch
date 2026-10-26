@@ -14,15 +14,13 @@ struct SpotifySettings: View {
             Section {
                 Toggle("Show Spotify in the notch", isOn: $settings.prefs.showSpotify)
             } footer: {
-                Text("Playback uses AppleScript to talk to the Spotify app, no login needed. If nothing shows, allow njrNotch in System Settings → Privacy & Security → Automation.")
+                Text("If nothing shows, allow njrNotch in System Settings → Privacy & Security → Automation.")
             }
             Section {
                 AccentSetting(automatic: "Auto (album art)", hex: $settings.prefs.spotifyAccentHex,
                               current: SpotifyController.shared.artAccentHex.map { Color(hex: $0) } ?? settings.prefs.accent)
             } header: {
                 Text("Colour")
-            } footer: {
-                Text("Auto takes the most vivid colour from the album art and fades to the next one when the song changes. It tints shuffle, like, the progress bar and the equaliser.")
             }
             Section("Now playing") {
                 Toggle("Album art", isOn: $settings.prefs.showAlbumArt)
@@ -30,8 +28,6 @@ struct SpotifySettings: View {
                 Toggle("Shuffle button", isOn: $settings.prefs.showShuffle)
                 Toggle("Like button", isOn: $settings.prefs.showLike)
                 Toggle("Visualizer", isOn: $settings.prefs.showVisualizer)
-                Text("The visualizer is an animation; it doesn't read your audio.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 TextField("Client ID", text: $settings.prefs.spotifyClientID, prompt: Text("Paste your app's Client ID"))

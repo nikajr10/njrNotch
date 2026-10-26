@@ -17,8 +17,9 @@ final class AgentMonitor {
     var selectedID: String?
     /// Bumped on every finished task, so the closed notch can pulse.
     private(set) var finishCount = 0
-    /// Held permission requests by session id, answered with Allow/Deny in the notch.
-    private var pending: [String: (reply: HookReply, adapter: AgentAdapter)] = [:]
+    /// Held permission requests by session id, oldest first, answered with Allow/Deny in the notch.
+    /// A queue, not one slot: parallel subagents share their session id and can ask at the same moment.
+    private var pending: [String: [(reply: HookReply, adapter: AgentAdapter, request: String)]] = [:]
 
     @ObservationIgnored private let adapters: [AgentAdapter] = [ClaudeCodeAdapter()]
     @ObservationIgnored private let listener = AgentListener()
@@ -48,17 +49,15 @@ final class AgentMonitor {
     }
 
     func canAnswer(_ sessionID: String) -> Bool {
-        pending[sessionID] != nil
+        pending[sessionID]?.isEmpty == false
     }
 
+    /// Answers the oldest held request; the next one, if any, takes its place.
     func answer(_ sessionID: String, allow: Bool) {
-        guard let held = pending.removeValue(forKey: sessionID) else { return }
+        guard let held = pending[sessionID]?.first else { return }
+        pending[sessionID]?.removeFirst()
         held.reply.send(held.adapter.permissionReply(allow: allow))
-        update(sessionID) {
-            $0.status = .working
-            $0.permissionRequest = nil
-            $0.activity = allow ? "Allowed, continuing…" : "Denied"
-        }
+        showNextRequest(sessionID, activity: allow ? "Allowed, continuing…" : "Denied")
     }
 
     // MARK: - Events
@@ -84,11 +83,11 @@ final class AgentMonitor {
         switch event.kind {
         case .permissionNeeded where AppSettings.shared.prefs.answerPermissionsInNotch
                                      && adapter.permissionReply(allow: true) != nil:
-            pending.removeValue(forKey: id)?.reply.send() // an older request falls back to the terminal
-            pending[id] = (reply, adapter)
+            guard case .permissionNeeded(let request) = event.kind else { break }
+            pending[id, default: []].append((reply, adapter, request))
             reply.onClose = { [weak self] in self?.permissionAnsweredElsewhere(id, reply: reply) }
         case .finished, .sessionEnded:
-            pending.removeValue(forKey: id)?.reply.send()
+            pending.removeValue(forKey: id)?.forEach { $0.reply.send() }
             reply.send()
         default:
             reply.send()
@@ -111,7 +110,7 @@ final class AgentMonitor {
         if let project = event.project { session.project = project }
         if let transcript = event.transcriptPath { session.transcriptPath = transcript }
         session.updatedAt = .now
-        let isHeld = pending[id] != nil
+        let isHeld = canAnswer(id)
 
         switch event.kind {
         case .sessionStarted:
@@ -127,24 +126,21 @@ final class AgentMonitor {
                 session.task = Self.shorten(prompt)
             }
             session.activity = "Thinking…"
-            session.activitySymbol = "ellipsis"
             session.permissionRequest = nil
-        case .toolStarted(let activity, let symbol):
+        case .toolStarted(let activity):
             session.activity = activity
-            session.activitySymbol = symbol
             if !isHeld { session.status = .working; session.permissionRequest = nil }
         case .toolFinished:
             if !isHeld { session.status = .working; session.permissionRequest = nil }
         case .permissionNeeded(let request):
             session.status = .needsPermission
-            session.permissionRequest = request
+            session.permissionRequest = pending[id]?.first?.request ?? request // the notch answers the oldest first
             Alerts.fire(.permission, title: "\(agentName) needs permission · \(session.project)", body: request)
             PopNotifier.shared.post(PopNote(kind: .permission, title: "Needs permission · \(session.project)",
                                             detail: request))
         case .finished(let summary):
             session.status = .done
             session.activity = nil
-            session.activitySymbol = nil
             session.permissionRequest = nil
             session.lastResult = summary.map(Self.shorten)
             session.taskEndedAt = .now
@@ -172,11 +168,19 @@ final class AgentMonitor {
 
     /// The agent closed a held request: answered in the terminal, or the hook timed out.
     private func permissionAnsweredElsewhere(_ id: String, reply: HookReply) {
-        guard pending[id]?.reply === reply else { return }
-        pending[id] = nil
+        guard pending[id]?.contains(where: { $0.reply === reply }) == true else { return }
+        pending[id]?.removeAll { $0.reply === reply }
+        showNextRequest(id, activity: nil)
+    }
+
+    /// After a held request is answered: the next one in the queue, or back to working.
+    private func showNextRequest(_ id: String, activity: String?) {
+        if pending[id]?.isEmpty == true { pending[id] = nil }
+        let next = pending[id]?.first?.request
         update(id) {
-            $0.status = .working
-            $0.permissionRequest = nil
+            $0.status = next == nil ? .working : .needsPermission
+            $0.permissionRequest = next
+            if let activity { $0.activity = activity }
         }
     }
 

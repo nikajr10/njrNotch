@@ -34,7 +34,7 @@
 - Project, current action, task time, model, effort and a summary of the last result.
 
 **The notch**
-- Hover to open. When closed, the sides show album art and an equaliser, or the Claude Code mascot with an icon for what it's doing (editing, running a command, searching…).
+- Hover to open. When closed, the sides show album art and an equaliser, or the Claude Code mascot while it works.
 - Pop-down notifications for song changes, finished tasks and permission requests.
 - Settings inside the notch, a right-click menu, and a keyboard shortcut (⌃⌥N). No menu bar icon needed.
 

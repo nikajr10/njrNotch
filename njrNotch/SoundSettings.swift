@@ -25,8 +25,6 @@ struct SoundSettings: View {
                 } maximumValueLabel: {
                     Image(systemName: "speaker.wave.3.fill")
                 }
-            } footer: {
-                Text("Sounds play only for Claude Code, never when the song changes. Built-in sounds come from macOS (/System/Library/Sounds); njrNotch bundles none.")
             }
         }
         .formStyle(.grouped)

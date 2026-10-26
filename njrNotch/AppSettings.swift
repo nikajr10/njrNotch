@@ -51,7 +51,7 @@ struct Preferences: Codable, Equatable {
     var closedSource = ClosedSource.auto
     var closedShowsArt = true
     var closedShowsEqualizer = true
-    var closedLogoAnimates = true      // tool icon and badges beside the closed notch move
+    var closedLogoAnimates = true      // busy circle and badges beside the closed notch move
     var idleHidesAfter = 2.0           // seconds paused music or finished Claude stays beside the closed notch
     // Pop-down notifications
     var popOn = true

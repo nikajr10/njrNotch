@@ -12,8 +12,6 @@ struct NotificationSettings: View {
         Form {
             Section {
                 Toggle("Pop-down notifications under the notch", isOn: $settings.prefs.popOn)
-            } footer: {
-                Text("Click a notification to open the notch on its tab. A new one replaces the one showing.")
             }
             Section("Show a notification when") {
                 Toggle("The song changes", isOn: $settings.prefs.popSong)
@@ -52,8 +50,6 @@ struct NotificationSettings: View {
                     .onChange(of: settings.prefs.notificationsOn) { _, on in
                         if on { Alerts.requestNotificationPermission() }
                     }
-            } footer: {
-                Text("Task finished, permission needed and session ended appear in Notification Centre too.")
             }
         }
         .formStyle(.grouped)

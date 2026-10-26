@@ -26,8 +26,6 @@ struct ClaudeCodeSettings: View {
                 }
             } header: {
                 Text("Connect to Claude Code")
-            } footer: {
-                Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged. Claude Code only gives the usage limits to a status line.")
             }
             Section("Colour") {
                 AccentSetting(automatic: "Default (Claude orange)", hex: $settings.prefs.claudeAccentHex,
@@ -40,8 +38,6 @@ struct ClaudeCodeSettings: View {
                 Toggle("Summary of the last result", isOn: $settings.prefs.showLastResult)
             } header: {
                 Text("Details")
-            } footer: {
-                Text("Model and effort come from the status line or the session's log. Anything Claude Code doesn't report stays hidden.")
             }
             Section("Usage") {
                 Toggle("5-hour and weekly limits", isOn: $settings.prefs.showUsageLimits)
@@ -50,8 +46,6 @@ struct ClaudeCodeSettings: View {
                 Toggle("Answer permission requests in the notch", isOn: $settings.prefs.answerPermissionsInNotch)
             } header: {
                 Text("Notch")
-            } footer: {
-                Text("With answering on, Allow and Deny buttons appear in the notch. Otherwise the notch tells you to answer in the terminal.")
             }
         }
         .formStyle(.grouped)

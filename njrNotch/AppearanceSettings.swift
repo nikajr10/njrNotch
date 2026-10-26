@@ -40,8 +40,6 @@ struct AppearanceSettings: View {
                     }
                 } header: {
                     Text("Colour")
-                } footer: {
-                    Text("The Spotify and Claude Code tabs have their own accent colour in their sections.")
                 }
                 Section {
                     slider("Open width", value: $settings.prefs.expandedWidth, in: 360...600, step: 10, unit: "pt")
@@ -49,8 +47,6 @@ struct AppearanceSettings: View {
                     slider("Corner radius", value: $settings.prefs.cornerRadius, in: 8...40, step: 1, unit: "pt")
                 } header: {
                     Text("Size and shape")
-                } footer: {
-                    Text("The notch shrinks to fit a tab that needs less room, and scrolls when it needs more.")
                 }
                 Section("Text and layout") {
                     Picker("Text size", selection: $settings.prefs.textScale) {

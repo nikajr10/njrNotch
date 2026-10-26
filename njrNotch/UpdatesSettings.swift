@@ -22,8 +22,6 @@ struct UpdatesSettings: View {
                 } label: {
                     status
                 }
-            } footer: {
-                Text("njrNotch looks at its latest release on GitHub when it starts and once a day, and pops down from the notch when there's a new one.")
             }
             if case .available(let release) = updater.state {
                 Section {
@@ -32,8 +30,6 @@ struct UpdatesSettings: View {
                         .buttonStyle(.borderedProminent)
                 } header: {
                     Text("What's new in \(release.version)")
-                } footer: {
-                    Text("njrNotch replaces itself and opens again. Your settings stay.")
                 }
             }
         }

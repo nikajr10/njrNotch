@@ -67,44 +67,18 @@ struct ClaudeLogoBadge: View {
     }
 }
 
-/// What Claude is doing, as an orange tool icon: it swaps with the system's replace animation when the
-/// tool changes, and breathes while it runs (dots fill in turn while it thinks). An AppKit image view,
-/// so Core Animation runs it and the notch doesn't redraw every frame.
-struct ToolIcon: NSViewRepresentable {
-    let symbol: String
+/// Claude Code's busy sign from its terminal title: a half-filled circle in Claude orange that swaps
+/// sides every second. One redraw a second, so it costs next to nothing.
+struct BusyCircle: View {
     let size: CGFloat
     var animates = true
 
-    func makeNSView(context: Context) -> NSImageView {
-        let view = NSImageView()
-        view.contentTintColor = NSColor(ClaudeLogo.orange)
-        return view
-    }
-
-    func updateNSView(_ view: NSImageView, context: Context) {
-        // Only on a real change: re-adding the effect on every SwiftUI update would restart it.
-        guard context.coordinator.shown.map({ $0 != (symbol, size, animates) }) ?? true else { return }
-        let isFirst = context.coordinator.shown == nil
-        context.coordinator.shown = (symbol, size, animates)
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: size, weight: .semibold))
-        view.removeAllSymbolEffects()
-        if let image, animates, !isFirst {
-            view.setSymbolImage(image, contentTransition: .replace)
-        } else {
-            view.image = image
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let left = !animates || Int(context.date.timeIntervalSinceReferenceDate) % 2 == 0
+            Image(systemName: left ? "circle.lefthalf.filled" : "circle.righthalf.filled")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(ClaudeLogo.orange)
         }
-        guard animates else { return }
-        if symbol == "ellipsis" {
-            view.addSymbolEffect(.variableColor.iterative, options: .repeating)
-        } else {
-            view.addSymbolEffect(.pulse, options: .repeating)
-        }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var shown: (String, CGFloat, Bool)?
     }
 }
