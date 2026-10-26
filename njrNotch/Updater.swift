@@ -4,17 +4,22 @@
 //
 
 import AppKit
+import CryptoKit
 import Observation
 
 /// Checks GitHub for a newer release and installs it over this copy of the app.
 /// A release is a GitHub release tagged with its version (v1.2) with njrNotch.dmg attached, as
 /// scripts/make-dmg.sh builds it; its notes (Markdown) are shown in Settings → Updates.
+/// Every DMG must come with njrNotch.dmg.sig, an Ed25519 signature made with the key in the developer's
+/// Keychain (scripts/sign-update.swift). A release without it, or with a bad one, is never installed,
+/// so the GitHub account alone can't ship code to people's Macs.
 @Observable
 final class Updater {
     struct Release: Equatable {
         var version: String
         var notes: String
         var dmg: URL
+        var signature: URL
     }
 
     enum State: Equatable {
@@ -27,6 +32,8 @@ final class Updater {
     static let shared = Updater()
     static let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
     private static let latest = URL(string: "https://api.github.com/repos/nikajr10/njrNotch/releases/latest")!
+    /// The release signing key's public half, from `swift scripts/sign-update.swift keygen`.
+    static let publicKey = "yWdIzkpgim7nhOV6Nm1gsdInH+kmY3Me/1QjCPKZ5YI="
 
     private(set) var state = State.idle
     private(set) var lastChecked: Date?
@@ -69,10 +76,14 @@ final class Updater {
                 state = .upToDate
                 return true
             }
-            guard let dmg = release.assets.first(where: { $0.name.hasSuffix(".dmg") })?.browser_download_url else {
+            guard let dmg = release.assets.first(where: { $0.name.hasSuffix(".dmg") }) else {
                 throw UpdateError("njrNotch \(version) is out, but its release has no .dmg to install yet.")
             }
-            state = .available(Release(version: version, notes: release.body ?? "", dmg: dmg))
+            guard let signature = release.assets.first(where: { $0.name == dmg.name + ".sig" }) else {
+                throw UpdateError("njrNotch \(version) is out, but it isn't signed, so it can't be installed from here.")
+            }
+            state = .available(Release(version: version, notes: release.body ?? "", dmg: dmg.browser_download_url,
+                                       signature: signature.browser_download_url))
             return true
         } catch {
             state = .failed(error.localizedDescription)
@@ -86,6 +97,10 @@ final class Updater {
         do {
             let (file, _) = try await URLSession.shared.download(from: release.dmg)
             defer { try? FileManager.default.removeItem(at: file) }
+            let (signature, _) = try await URLSession.shared.data(from: release.signature)
+            guard Self.isSigned(try Data(contentsOf: file), signature: signature, publicKey: Self.publicKey) else {
+                throw UpdateError("The download isn't signed by njrNotch's developer, so it wasn't installed.")
+            }
             state = .installing("Installing…")
             let app = try await Task.detached { try Self.install(dmg: file) }.value
             // Opens the new copy once this one has quit.
@@ -97,6 +112,14 @@ final class Updater {
         } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Whether `signature` (base64 Ed25519, as sign-update.swift writes it) signs `file` with `publicKey`.
+    nonisolated static func isSigned(_ file: Data, signature: Data, publicKey: String) -> Bool {
+        guard let key = Data(base64Encoded: publicKey).flatMap({ try? Curve25519.Signing.PublicKey(rawRepresentation: $0) }),
+              let raw = Data(base64Encoded: String(decoding: signature, as: UTF8.self)
+                  .trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
+        return key.isValidSignature(raw, for: file)
     }
 
     nonisolated static func isNewer(_ version: String, than current: String) -> Bool {
@@ -152,6 +175,14 @@ final class Updater {
     static func selfCheck() {
         assert(isNewer("1.2", than: "1.1") && isNewer("1.10", than: "1.9") && isNewer("2", than: "1.9.9"))
         assert(!isNewer("1.1", than: "1.1") && !isNewer("1.0.9", than: "1.1"))
+        let key = Curve25519.Signing.PrivateKey(), file = Data("njrNotch.dmg".utf8)
+        let signature = Data(try! key.signature(for: file).base64EncodedString().utf8)
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        assert(isSigned(file, signature: signature, publicKey: publicKey))
+        assert(!isSigned(Data("tampered".utf8), signature: signature, publicKey: publicKey))
+        assert(!isSigned(file, signature: signature,
+                         publicKey: Curve25519.Signing.PrivateKey().publicKey.rawRepresentation.base64EncodedString()))
+        assert(!isSigned(file, signature: Data("junk".utf8), publicKey: publicKey))
     }
     #endif
 

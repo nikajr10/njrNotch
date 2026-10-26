@@ -1,6 +1,7 @@
 #!/bin/bash
 # Builds njrNotch for release (hardened runtime) and packs it into dist/njrNotch.dmg. The name has no
 # version, so the README's releases/latest/download/njrNotch.dmg link always gets the newest release.
+# Also writes dist/njrNotch.dmg.sig; attach both to the GitHub release.
 #
 #   ./scripts/make-dmg.sh                      ad-hoc signed (no Apple Developer account needed)
 #   SIGN_IDENTITY="Developer ID Application: …" ./scripts/make-dmg.sh   signed for notarization
@@ -29,4 +30,7 @@ cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "njrNotch" -srcfolder "$STAGE" -ov -format UDZO "dist/njrNotch.dmg" >/dev/null
 rm -rf "$STAGE"
+# The in-app updater installs only a DMG signed with your key (see sign-update.swift).
+swift scripts/sign-update.swift sign dist/njrNotch.dmg
 echo "njrNotch $VERSION"; shasum -a 256 "dist/njrNotch.dmg"
+echo "Release: gh release create v$VERSION dist/njrNotch.dmg dist/njrNotch.dmg.sig --notes-file <notes.md>"
