@@ -127,9 +127,11 @@ final class AgentMonitor {
                 session.task = Self.shorten(prompt)
             }
             session.activity = "Thinking…"
+            session.activitySymbol = "ellipsis"
             session.permissionRequest = nil
-        case .toolStarted(let activity):
+        case .toolStarted(let activity, let symbol):
             session.activity = activity
+            session.activitySymbol = symbol
             if !isHeld { session.status = .working; session.permissionRequest = nil }
         case .toolFinished:
             if !isHeld { session.status = .working; session.permissionRequest = nil }
@@ -142,6 +144,7 @@ final class AgentMonitor {
         case .finished(let summary):
             session.status = .done
             session.activity = nil
+            session.activitySymbol = nil
             session.permissionRequest = nil
             session.lastResult = summary.map(Self.shorten)
             session.taskEndedAt = .now

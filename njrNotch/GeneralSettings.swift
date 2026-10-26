@@ -46,7 +46,7 @@ struct GeneralSettings: View {
                     }
                     Toggle("Album art", isOn: $settings.prefs.closedShowsArt)
                     Toggle("Equaliser while playing", isOn: $settings.prefs.closedShowsEqualizer)
-                    Toggle("Animate the heartbeat line and badges", isOn: $settings.prefs.closedLogoAnimates)
+                    Toggle("Animate Claude's tool icon and badges", isOn: $settings.prefs.closedLogoAnimates)
                     LabeledContent("Hide when paused or idle after") {
                         HStack {
                             Slider(value: $settings.prefs.idleHidesAfter, in: 1...60, step: 1)
@@ -60,7 +60,7 @@ struct GeneralSettings: View {
             } header: {
                 Text("Closed notch")
             } footer: {
-                Text("Auto: music on the left, and on the right the equaliser, or the Claude Code mascot while Claude Code is busy. With no music, the mascot and a heartbeat line, check or alert. Previews can also be turned on and off from the notch's right-click menu.")
+                Text("Auto: music on the left, and on the right the equaliser, or the Claude Code mascot while Claude Code is busy. With no music, the mascot and what it's doing: a tool icon, check or alert. Previews can also be turned on and off from the notch's right-click menu.")
             }
             Section {
                 Toggle("Keyboard shortcut", isOn: $settings.prefs.hotKeyOn)

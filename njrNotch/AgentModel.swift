@@ -16,7 +16,8 @@ struct AgentEvent {
     enum Kind {
         case sessionStarted
         case promptSubmitted(String)
-        case toolStarted(activity: String)
+        /// `symbol`: an SF Symbol for the tool, shown beside the closed notch.
+        case toolStarted(activity: String, symbol: String)
         case toolFinished
         case permissionNeeded(request: String)
         case finished(summary: String?)
@@ -47,6 +48,8 @@ struct AgentSession: Identifiable {
     var status = AgentStatus.idle
     var task: String?
     var activity: String?
+    /// SF Symbol for what it's doing now; "ellipsis" while it thinks.
+    var activitySymbol: String?
     /// The current task's start (its prompt) and end (Stop), for the task clock. nil = not seen.
     var taskStartedAt: Date?
     var taskEndedAt: Date?

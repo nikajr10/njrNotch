@@ -67,71 +67,44 @@ struct ClaudeLogoBadge: View {
     }
 }
 
-/// A heart monitor trace: the whole beat stays on screen, dim, and a bright pulse runs along it.
-/// Core Animation runs it, so the notch doesn't redraw every frame. `animates` off shows the trace, still.
-struct Heartbeat: NSViewRepresentable {
-    let color: NSColor
-    let animates: Bool
+/// What Claude is doing, as an orange tool icon: it swaps with the system's replace animation when the
+/// tool changes, and breathes while it runs (dots fill in turn while it thinks). An AppKit image view,
+/// so Core Animation runs it and the notch doesn't redraw every frame.
+struct ToolIcon: NSViewRepresentable {
+    let symbol: String
+    let size: CGFloat
+    var animates = true
 
-    func makeNSView(context: Context) -> TraceView { TraceView() }
-
-    func updateNSView(_ view: TraceView, context: Context) {
-        view.trace.strokeColor = color.cgColor
-        view.trace.shadowColor = color.cgColor
-        view.base.strokeColor = color.withAlphaComponent(0.3).cgColor
-        view.setBeating(animates)
+    func makeNSView(context: Context) -> NSImageView {
+        let view = NSImageView()
+        view.contentTintColor = NSColor(ClaudeLogo.orange)
+        return view
     }
 
-    final class TraceView: NSView {
-        let base = CAShapeLayer()
-        let trace = CAShapeLayer()
-        /// (x, y) in 0...1, y up: flat, P wave, the QRS spike, T wave, flat.
-        private static let points: [(CGFloat, CGFloat)] = [
-            (0, 0.5), (0.2, 0.5), (0.26, 0.6), (0.32, 0.5), (0.4, 0.5), (0.45, 0.38),
-            (0.52, 0.94), (0.59, 0.06), (0.64, 0.5), (0.73, 0.5), (0.8, 0.66), (0.87, 0.5), (1, 0.5),
-        ]
-
-        override init(frame: NSRect) {
-            super.init(frame: frame)
-            wantsLayer = true
-            for line in [base, trace] {
-                line.fillColor = nil
-                line.lineWidth = 1.2
-                line.lineCap = .round
-                line.lineJoin = .round
-                layer?.addSublayer(line)
-            }
-            trace.shadowOpacity = 0.8 // a soft glow, like a monitor screen
-            trace.shadowRadius = 1.5
-            trace.shadowOffset = .zero
+    func updateNSView(_ view: NSImageView, context: Context) {
+        // Only on a real change: re-adding the effect on every SwiftUI update would restart it.
+        guard context.coordinator.shown.map({ $0 != (symbol, size, animates) }) ?? true else { return }
+        let isFirst = context.coordinator.shown == nil
+        context.coordinator.shown = (symbol, size, animates)
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: size, weight: .semibold))
+        view.removeAllSymbolEffects()
+        if let image, animates, !isFirst {
+            view.setSymbolImage(image, contentTransition: .replace)
+        } else {
+            view.image = image
         }
-
-        required init?(coder: NSCoder) { fatalError("not used") }
-
-        func setBeating(_ on: Bool) {
-            guard on != (trace.animation(forKey: "beat") != nil) else { return }
-            guard on else { return trace.removeAnimation(forKey: "beat") }
-            let head = CAKeyframeAnimation(keyPath: "strokeEnd")
-            head.values = [0, 1, 1]
-            head.keyTimes = [0, 0.6, 1]
-            let tail = CAKeyframeAnimation(keyPath: "strokeStart")
-            tail.values = [0, 0, 1]
-            tail.keyTimes = [0, 0.3, 1]
-            let beat = CAAnimationGroup()
-            beat.animations = [head, tail]
-            beat.duration = 1.2
-            beat.repeatCount = .infinity
-            trace.add(beat, forKey: "beat")
+        guard animates else { return }
+        if symbol == "ellipsis" {
+            view.addSymbolEffect(.variableColor.iterative, options: .repeating)
+        } else {
+            view.addSymbolEffect(.pulse, options: .repeating)
         }
+    }
 
-        override func layout() {
-            super.layout()
-            let path = CGMutablePath()
-            path.addLines(between: Self.points.map { CGPoint(x: $0.0 * bounds.width, y: $0.1 * bounds.height) })
-            for line in [base, trace] {
-                line.frame = bounds
-                line.path = path
-            }
-        }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var shown: (String, CGFloat, Bool)?
     }
 }

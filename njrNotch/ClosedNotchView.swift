@@ -12,7 +12,7 @@ struct ClosedActivity: Equatable {
         case artwork, equalizer, paused
         /// The Claude Code mascot with its state on it (check or alert badge).
         case logo(AgentStatus)
-        /// Heartbeat line, check mark or alert icon.
+        /// What it's doing (tool icon), check mark or alert icon.
         case state(AgentStatus)
     }
 
@@ -119,8 +119,9 @@ struct ClosedNotchView: View {
         case .logo(let status):
             ClaudeLogoBadge(status: status, size: (ear * 0.66).rounded(), animates: prefs.closedLogoAnimates)
         case .state(.working):
-            Heartbeat(color: NSColor(ClaudeLogo.orange), animates: prefs.closedLogoAnimates)
-                .frame(width: (ear * 0.62).rounded(), height: (ear * 0.36).rounded())
+            // The newest working session, as the expanded tab shows it first.
+            ToolIcon(symbol: AgentMonitor.shared.sessions.first { $0.status == .working }?.activitySymbol ?? "ellipsis",
+                     size: (ear * 0.4).rounded(), animates: prefs.closedLogoAnimates)
         case .state(let status):
             AgentStatusIcon(status: status, size: (ear * 0.42).rounded(), animates: prefs.closedLogoAnimates)
         }

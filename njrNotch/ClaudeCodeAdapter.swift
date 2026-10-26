@@ -24,7 +24,7 @@ struct ClaudeCodeAdapter: AgentAdapter {
         switch payload["hook_event_name"] as? String {
         case "SessionStart": kind = .sessionStarted
         case "UserPromptSubmit": kind = .promptSubmitted(payload["prompt"] as? String ?? "")
-        case "PreToolUse": kind = .toolStarted(activity: Self.activity(tool: tool, input: input))
+        case "PreToolUse": kind = .toolStarted(activity: Self.activity(tool: tool, input: input), symbol: Self.symbol(tool: tool))
         case "PostToolUse": kind = .toolFinished
         case "PermissionRequest": kind = .permissionNeeded(request: Self.request(tool: tool, input: input))
         case "Stop": kind = .finished(summary: summary)
@@ -66,6 +66,20 @@ struct ClaudeCodeAdapter: AgentAdapter {
         }
     }
 
+    /// The tool as an icon: pencil for edits, terminal for commands, magnifier for searches, and so on.
+    static func symbol(tool: String) -> String {
+        switch tool {
+        case "Edit", "MultiEdit", "Write", "NotebookEdit": "pencil"
+        case "Read": "doc.text"
+        case "Bash": "terminal"
+        case "Grep", "Glob": "magnifyingglass"
+        case "WebFetch", "WebSearch": "globe"
+        case "Task", "Agent": "person.2"
+        case "TodoWrite": "checklist"
+        default: "wrench.and.screwdriver"
+        }
+    }
+
     /// What a permission prompt is asking for: the command, file or URL.
     static func request(tool: String, input: [String: Any]) -> String {
         let detail = (input["command"] ?? input["file_path"] ?? input["url"] ?? input["description"]) as? String
@@ -89,6 +103,7 @@ struct ClaudeCodeAdapter: AgentAdapter {
         assert(program(in: "/usr/bin/python3 -I x.py | head") == "python3")
         assert(program(in: "") == nil)
         assert(activity(tool: "Edit", input: ["file_path": "/a/NotchView.swift"]) == "Editing NotchView.swift")
+        assert(symbol(tool: "Bash") == "terminal" && symbol(tool: "mcp__x__y") == "wrench.and.screwdriver")
         assert(request(tool: "Bash", input: ["command": "rm -rf build"]) == "Bash: rm -rf build")
     }
     #endif
