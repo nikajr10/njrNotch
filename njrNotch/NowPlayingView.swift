@@ -9,6 +9,7 @@ import SwiftUI
 struct NowPlayingView: View {
     let spotify: SpotifyController
     let track: SpotifyController.Track
+    @State private var isHoveringArt = false
 
     private var prefs: Preferences { AppSettings.shared.prefs }
 
@@ -28,6 +29,10 @@ struct NowPlayingView: View {
                     .frame(width: art, height: art)
                     .clipShape(RoundedRectangle(cornerRadius: art * 0.18))
                     .contentShape(RoundedRectangle(cornerRadius: art * 0.18))
+                    .scaleEffect(isHoveringArt ? 1.06 : 1)
+                    .brightness(isHoveringArt ? 0.08 : 0)
+                    .onHover { isHoveringArt = $0 }
+                    .animation(.easeOut(duration: 0.15), value: isHoveringArt)
                     .onTapGesture(perform: spotify.showApp)
                     .help("Open Spotify")
                     .accessibilityAddTraits(.isButton)
@@ -51,7 +56,7 @@ struct NowPlayingView: View {
             }
 
             // Shuffle and like keep their slots when hidden, so play/pause stays in the middle.
-            HStack(spacing: 24) {
+            HStack(spacing: 10) {
                 slot(prefs.showShuffle) {
                     control("shuffle", label: spotify.isShuffling ? "Shuffle on" : "Shuffle off",
                             action: spotify.toggleShuffle)
@@ -59,7 +64,7 @@ struct NowPlayingView: View {
                 }
                 control("backward.fill", label: "Previous", action: spotify.previous)
                 control(spotify.isPlaying ? "pause.fill" : "play.fill",
-                        label: spotify.isPlaying ? "Pause" : "Play", action: spotify.playPause)
+                        label: spotify.isPlaying ? "Pause" : "Play", size: 44, action: spotify.playPause)
                     .font(.notch(20))
                 control("forward.fill", label: "Next", action: spotify.next)
                 slot(prefs.showLike) { likeButton }
@@ -88,16 +93,44 @@ struct NowPlayingView: View {
 
     @ViewBuilder
     private func slot(_ isShown: Bool, @ViewBuilder _ content: () -> some View) -> some View {
-        if isShown { content() } else { Color.clear.frame(width: 22, height: 1) }
+        if isShown { content() } else { Color.clear.frame(width: 34, height: 1) }
     }
 
-    private func control(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+    private func control(_ symbol: String, label: String, size: CGFloat = 34,
+                         action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol).frame(minWidth: 22, minHeight: 22)
+            Image(systemName: symbol)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        .buttonStyle(ControlStyle(size: size))
         .accessibilityLabel(label)
+    }
+}
+
+/// A round hit area that lights up under the pointer and shrinks a little when pressed.
+private struct ControlStyle: ButtonStyle {
+    let size: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        ControlBody(configuration: configuration, size: size)
+    }
+
+    private struct ControlBody: View {
+        let configuration: Configuration
+        let size: CGFloat
+        @State private var isHovering = false
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .frame(width: size, height: size)
+                .background(.primary.opacity(configuration.isPressed ? 0.22 : isHovering && isEnabled ? 0.12 : 0),
+                            in: Circle())
+                .scaleEffect(configuration.isPressed ? 0.9 : 1)
+                .contentShape(Circle())
+                .onHover { isHovering = $0 }
+                .animation(.easeOut(duration: 0.15), value: isHovering)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
     }
 }
 

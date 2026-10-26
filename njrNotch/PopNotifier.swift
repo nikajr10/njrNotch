@@ -8,7 +8,7 @@ import Observation
 
 /// One pop-down notification under the closed notch.
 struct PopNote: Identifiable, Equatable {
-    enum Kind { case song, done, permission, sessionEnded }
+    enum Kind { case song, done, permission, sessionEnded, update }
 
     let id = UUID()
     let kind: Kind
@@ -39,6 +39,7 @@ final class PopNotifier {
         case .done: prefs.popDone
         case .permission: prefs.popPermission
         case .sessionEnded: prefs.popSessionEnded
+        case .update: true
         }
         guard prefs.popOn, isOn else { return }
         current = note

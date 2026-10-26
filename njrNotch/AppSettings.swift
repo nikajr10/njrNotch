@@ -16,6 +16,7 @@ struct Preferences: Codable, Equatable {
     var hotKeyCode = 45                // kVK_ANSI_N
     var hotKeyModifiers = 6144         // Carbon controlKey | optionKey
     var hotKeyLabel = "⌃⌥N"
+    var checkForUpdates = true         // GitHub, at launch and daily
     // Appearance
     var accentHex = "#0A84FF"
     var background = NotchBackground.black
@@ -44,16 +45,13 @@ struct Preferences: Codable, Equatable {
     var showElapsed = true
     var showLastResult = true
     var claudeAccentHex = ""           // "" = Claude orange
-    var showTokenTotal = true
-    var showTokenUsed = true
-    var showTokenRemaining = true
-    var showUsageLimits = true         // 5-hour and weekly limit line under the bar
+    var showUsageLimits = true         // 5-hour and weekly limit bars
     // Closed notch live activity
     var showClosedIndicator = true     // previews beside the closed notch; also in the notch's right-click menu
     var closedSource = ClosedSource.auto
     var closedShowsArt = true
     var closedShowsEqualizer = true
-    var closedLogoAnimates = true      // ring and badges on the Claude logo move
+    var closedLogoAnimates = true      // heartbeat line and badges beside the closed notch move
     var idleHidesAfter = 2.0           // seconds paused music or finished Claude stays beside the closed notch
     // Pop-down notifications
     var popOn = true

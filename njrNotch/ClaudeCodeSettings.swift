@@ -19,7 +19,7 @@ struct ClaudeCodeSettings: View {
             Section {
                 integration("Hooks", detail: "Live status, permission prompts, sounds",
                             script: "claude-hooks", isInstalled: hooksInstalled)
-                integration("Status line", detail: "Context window: total, used and remaining tokens",
+                integration("Status line", detail: "5-hour and weekly usage limits",
                             script: "statusline", isInstalled: statusLineInstalled)
                 if !output.isEmpty {
                     Text(output).font(.caption.monospaced()).textSelection(.enabled)
@@ -27,7 +27,7 @@ struct ClaudeCodeSettings: View {
             } header: {
                 Text("Connect to Claude Code")
             } footer: {
-                Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged. Without the status line, context numbers are an estimate from the session's log.")
+                Text("Both edit ~/.claude/settings.json and back it up first. If you already have a status line, it keeps working: njrNotch runs it and shows its output unchanged. Claude Code only gives the usage limits to a status line.")
             }
             Section("Colour") {
                 AccentSetting(automatic: "Default (Claude orange)", hex: $settings.prefs.claudeAccentHex,
@@ -36,17 +36,14 @@ struct ClaudeCodeSettings: View {
             Section {
                 Toggle("Current task (your last prompt)", isOn: $settings.prefs.showTask)
                 Toggle("What it's doing now", isOn: $settings.prefs.showActivity)
-                Toggle("Session time", isOn: $settings.prefs.showElapsed)
+                Toggle("Task time", isOn: $settings.prefs.showElapsed)
                 Toggle("Summary of the last result", isOn: $settings.prefs.showLastResult)
             } header: {
                 Text("Details")
             } footer: {
                 Text("Model and effort come from the status line or the session's log. Anything Claude Code doesn't report stays hidden.")
             }
-            Section("Tokens") {
-                Toggle("Total tokens (context window size)", isOn: $settings.prefs.showTokenTotal)
-                Toggle("Tokens used", isOn: $settings.prefs.showTokenUsed)
-                Toggle("Remaining tokens", isOn: $settings.prefs.showTokenRemaining)
+            Section("Usage") {
                 Toggle("5-hour and weekly limits", isOn: $settings.prefs.showUsageLimits)
             }
             Section {

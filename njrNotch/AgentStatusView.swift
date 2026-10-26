@@ -74,7 +74,7 @@ struct AgentStatusIcon: NSViewRepresentable {
 }
 
 /// One agent session in the Claude Code tab: state, what it's doing, permission prompt,
-/// session time, model, context left and tokens. Anything the agent didn't report is hidden.
+/// task time, model and the plan's usage limits. Anything the agent didn't report is hidden.
 struct AgentStatusView: View {
     let agent: AgentMonitor
     let session: AgentSession
@@ -96,7 +96,7 @@ struct AgentStatusView: View {
                 permissionBox(request)
             }
             if prefs.showActivity, session.status == .working {
-                Label(session.activity ?? "Working…", systemImage: "arrow.forward.circle")
+                Text(session.activity ?? "Working…")
                     .font(.notch(12))
                     .foregroundStyle(AgentStatus.working.color)
                     .lineLimit(1)
@@ -107,8 +107,9 @@ struct AgentStatusView: View {
             if prefs.showLastResult, session.status == .done, let result = session.lastResult {
                 line("Result", result, lines: 3)
             }
-            modelRow
-            TokenBlock(session: session, today: agent.today)
+            if prefs.showUsageLimits {
+                UsageLimitsView().padding(.top, 4)
+            }
         }
     }
 
@@ -145,40 +146,35 @@ struct AgentStatusView: View {
                 Text(session.status.label)
                     .font(.notch(13, weight: .semibold))
                     .foregroundStyle(session.status.color)
-                Text(session.project.isEmpty ? session.agentName : session.project)
+                Text(subtitle)
                     .font(.notch(11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            if prefs.showElapsed, let start = session.startedAt {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Label(Self.elapsed(from: start, to: context.date), systemImage: "clock")
-                        .font(.notch(11).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Session time \(Self.elapsed(from: start, to: context.date))")
+            if prefs.showElapsed, let start = session.taskStartedAt {
+                if let end = session.taskEndedAt {
+                    taskTime(from: start, to: end)
+                } else {
+                    TimelineView(.periodic(from: .now, by: 1)) { taskTime(from: start, to: $0.date) }
                 }
             }
         }
     }
 
-    /// "Opus 5.5 · high effort", from the status line or the transcript; only what they contain.
-    @ViewBuilder private var modelRow: some View {
+    private func taskTime(from start: Date, to end: Date) -> some View {
+        Text(Self.elapsed(from: start, to: end))
+            .font(.notch(11).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Task time \(Self.elapsed(from: start, to: end))")
+    }
+
+    /// "Syncra · Opus 5.5 · high", model and effort from the status line or the transcript.
+    private var subtitle: String {
         let model = statusLine?.model ?? session.model.map(TokenUsage.displayName(model:))
         let effort = statusLine?.effort ?? session.effort
-        if model != nil || effort != nil {
-            HStack(spacing: 12) {
-                if let model {
-                    Label(model, systemImage: "cpu")
-                }
-                if let effort {
-                    Label("\(effort) effort", systemImage: "gauge.with.dots.needle.67percent")
-                }
-            }
-            .font(.notch(11))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-        }
+        return [session.project.isEmpty ? session.agentName : session.project, model, effort]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 
     private func permissionBox(_ request: String) -> some View {

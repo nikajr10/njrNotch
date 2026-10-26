@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum SettingsSection: CaseIterable, Identifiable {
-    case general, appearance, spotify, claudeCode, notifications, sounds, about
+    case general, appearance, spotify, claudeCode, notifications, sounds, updates, about
 
     var id: Self { self }
 
@@ -18,6 +18,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .claudeCode: "Claude Code"
         case .notifications: "Notifications"
         case .sounds: "Sounds"
+        case .updates: "Updates"
         case .about: "About"
         }
     }
@@ -30,6 +31,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .claudeCode: "terminal.fill"
         case .notifications: "bell.badge.fill"
         case .sounds: "speaker.wave.2.fill"
+        case .updates: "arrow.down.circle.fill"
         case .about: "info.circle.fill"
         }
     }
@@ -42,6 +44,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .claudeCode: .orange
         case .notifications: .red
         case .sounds: .pink
+        case .updates: .teal
         case .about: .indigo
         }
     }
@@ -64,6 +67,7 @@ struct SettingsView: View {
                         .background(section.color.gradient, in: RoundedRectangle(cornerRadius: 6))
                 }
                 .padding(.vertical, 2)
+                .badge(section == .updates && Updater.shared.hasUpdate ? Text("New") : nil)
             }
             .navigationSplitViewColumnWidth(190)
             .toolbar(removing: .sidebarToggle)
@@ -77,6 +81,7 @@ struct SettingsView: View {
                 case .claudeCode: ClaudeCodeSettings()
                 case .notifications: NotificationSettings()
                 case .sounds: SoundSettings()
+                case .updates: UpdatesSettings()
                 case .about: AboutSettings()
                 }
             }

@@ -10,9 +10,9 @@ import SwiftUI
 struct ClosedActivity: Equatable {
     enum Side: Hashable {
         case artwork, equalizer, paused
-        /// The Claude logo with its state on it (ring, check or alert badge).
+        /// The Claude Code mascot with its state on it (check or alert badge).
         case logo(AgentStatus)
-        /// Spinner, check mark or alert icon.
+        /// Heartbeat line, check mark or alert icon.
         case state(AgentStatus)
     }
 
@@ -119,7 +119,8 @@ struct ClosedNotchView: View {
         case .logo(let status):
             ClaudeLogoBadge(status: status, size: (ear * 0.66).rounded(), animates: prefs.closedLogoAnimates)
         case .state(.working):
-            Spinner()
+            Heartbeat(color: NSColor(ClaudeLogo.orange), animates: prefs.closedLogoAnimates)
+                .frame(width: (ear * 0.72).rounded(), height: (ear * 0.5).rounded())
         case .state(let status):
             AgentStatusIcon(status: status, size: (ear * 0.42).rounded(), animates: prefs.closedLogoAnimates)
         }
@@ -179,18 +180,4 @@ struct EqualizerBars: NSViewRepresentable {
             }
         }
     }
-}
-
-/// Native spinning indicator, light on the black notch.
-struct Spinner: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSProgressIndicator {
-        let view = NSProgressIndicator()
-        view.style = .spinning
-        view.controlSize = .small
-        view.appearance = NSAppearance(named: .darkAqua)
-        view.startAnimation(nil)
-        return view
-    }
-
-    func updateNSView(_ view: NSProgressIndicator, context: Context) {}
 }

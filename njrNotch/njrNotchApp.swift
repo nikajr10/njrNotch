@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.placeAtTopCentre()
         panel.orderFrontRegardless()
         HotKey.apply()
+        Updater.shared.start()
 
         // Follow display and Space changes straight away: right screen, and fresh Spotify state.
         NotificationCenter.default.addObserver(

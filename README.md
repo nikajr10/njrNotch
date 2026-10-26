@@ -30,12 +30,11 @@
 
 **Claude Code**
 - Live state: working, needs permission, done. Allow or deny permission requests right from the notch.
-- Context window: total, used and remaining tokens, with a bar that turns amber and red as it fills.
-- Your 5-hour and weekly usage limits, with reset times.
-- Project, current action, session time, model, effort and a summary of the last result.
+- Your 5-hour and weekly usage limits as two bars, with reset times.
+- Project, current action, task time, model, effort and a summary of the last result.
 
 **The notch**
-- Hover to open. When closed, the sides show album art and an equaliser, or the Claude logo with its state.
+- Hover to open. When closed, the sides show album art and an equaliser, or the Claude Code mascot with a heartbeat line while it works.
 - Pop-down notifications for song changes, finished tasks and permission requests.
 - Settings inside the notch, a right-click menu, and a keyboard shortcut (⌃⌥N). No menu bar icon needed.
 
@@ -52,7 +51,7 @@
 Open Settings (right-click the notch, or press ⌃⌥N and click the gear), go to **Claude Code**, and install:
 
 - **Hooks**: live state, permission prompts and sounds.
-- **Status line**: context window, and 5-hour and weekly limits.
+- **Status line**: 5-hour and weekly limits.
 
 Both back up `~/.claude/settings.json` before changing it. If you already have a status line, it keeps
 working exactly as before. Uninstall from the same place to put everything back.

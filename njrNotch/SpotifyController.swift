@@ -74,9 +74,10 @@ final class SpotifyController {
 
     /// Brings the Spotify app to the front (clicking the album art). Not NSRunningApplication.activate():
     /// macOS 14+ ignores activation requests from an app that isn't active, and the notch never is.
+    /// `reopen` is what a Dock click sends: it brings back a minimized or closed window, which `activate` doesn't.
     func showApp() {
         guard isRunning else { return }
-        queue.async { Self.run("tell application \"Spotify\" to activate") }
+        queue.async { Self.run("tell application \"Spotify\"\nreopen\nactivate\nend tell") }
     }
 
     /// Local files and ads can't be saved to Liked Songs.

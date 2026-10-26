@@ -6,7 +6,8 @@
 import AppKit
 import SwiftUI
 
-/// Claude's sparkle: your own "ClaudeLogo" image from the asset catalog if you add one, else a drawn starburst.
+/// The Claude Code mascot: your own "ClaudeLogo" image from the asset catalog if you add one, else the pixel
+/// creature from Claude Code's welcome screen.
 struct ClaudeLogo: View {
     static let orange = Color(hex: Preferences.claudeOrange)
     private static let custom = NSImage(named: "ClaudeLogo")
@@ -15,37 +16,38 @@ struct ClaudeLogo: View {
         if let image = Self.custom {
             Image(nsImage: image).resizable().scaledToFit()
         } else {
-            GeometryReader { geometry in
-                let size = min(geometry.size.width, geometry.size.height)
-                Starburst()
-                    .fill(Self.orange)
-                    .overlay(Starburst().stroke(Self.orange, style: StrokeStyle(lineWidth: size * 0.07, lineJoin: .round)))
-            }
-            .aspectRatio(1, contentMode: .fit)
+            Mascot().fill(Self.orange).aspectRatio(Mascot.aspect, contentMode: .fit)
         }
     }
 }
 
-/// Twelve rays of alternating length around a small centre.
-struct Starburst: Shape {
+/// Pixel by pixel from Claude Code's banner (` ▐▛███▜▌` / `▝▜█████▛▘` / `  ▘▘ ▝▝`): body with two eyes,
+/// arms, four legs. Each block-character quarter is one pixel, twice as tall as it is wide.
+struct Mascot: Shape {
+    private static let pixels = [
+        "..############..",
+        "..##.######.##..",
+        "################",
+        "..############..",
+        "...#.#....#.#...",
+    ]
+    static let aspect = CGFloat(pixels[0].count) / CGFloat(pixels.count * 2)
+
     func path(in rect: CGRect) -> Path {
-        let rays = 12
-        let centre = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2 * 0.92 // room for the rounded stroke
+        let width = rect.width / CGFloat(Self.pixels[0].count), height = rect.height / CGFloat(Self.pixels.count)
         var path = Path()
-        for i in 0..<rays * 2 {
-            let angle = Double(i) * .pi / Double(rays) - .pi / 2
-            let length = i.isMultiple(of: 2) ? (i.isMultiple(of: 4) ? 1 : 0.82) : 0.3
-            let point = CGPoint(x: centre.x + cos(angle) * radius * length, y: centre.y + sin(angle) * radius * length)
-            if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        for (row, line) in Self.pixels.enumerated() {
+            for (column, pixel) in line.enumerated() where pixel == "#" {
+                path.addRect(CGRect(x: rect.minX + CGFloat(column) * width, y: rect.minY + CGFloat(row) * height,
+                                    width: width, height: height))
+            }
         }
-        path.closeSubpath()
         return path
     }
 }
 
-/// The logo with Claude's state on it: a slowly turning orange ring while working, a check badge when done,
-/// a pulsing alert badge when it needs permission. `animates` off keeps the ring and badges still.
+/// The mascot with Claude's state on it: a check badge when done, a pulsing alert badge when it needs
+/// permission. `animates` off keeps the badges still.
 struct ClaudeLogoBadge: View {
     let status: AgentStatus
     let size: CGFloat
@@ -53,13 +55,8 @@ struct ClaudeLogoBadge: View {
 
     var body: some View {
         ClaudeLogo()
-            .frame(width: size * 0.6, height: size * 0.6)
+            .frame(width: size * 0.8, height: size * 0.8)
             .frame(width: size, height: size)
-            .overlay {
-                if status == .working {
-                    RotatingRing(color: NSColor(ClaudeLogo.orange), animates: animates)
-                }
-            }
             .overlay(alignment: .bottomTrailing) {
                 if status == .done || status == .needsPermission {
                     AgentStatusIcon(status: status, size: (size * 0.34).rounded(), animates: animates)
@@ -70,51 +67,65 @@ struct ClaudeLogoBadge: View {
     }
 }
 
-/// A partial ring that turns. Core Animation runs it, so the notch doesn't redraw every frame.
-private struct RotatingRing: NSViewRepresentable {
+/// A heart monitor trace: a beat runs across and fades out behind itself. Core Animation runs it,
+/// so the notch doesn't redraw every frame. `animates` off shows the whole trace, still.
+struct Heartbeat: NSViewRepresentable {
     let color: NSColor
     let animates: Bool
 
-    func makeNSView(context: Context) -> RingView { RingView() }
+    func makeNSView(context: Context) -> TraceView { TraceView() }
 
-    func updateNSView(_ view: RingView, context: Context) {
-        view.ring.strokeColor = color.cgColor
-        view.setSpinning(animates)
+    func updateNSView(_ view: TraceView, context: Context) {
+        view.trace.strokeColor = color.cgColor
+        view.trace.shadowColor = color.cgColor
+        view.setBeating(animates)
     }
 
-    final class RingView: NSView {
-        let ring = CAShapeLayer()
+    final class TraceView: NSView {
+        let trace = CAShapeLayer()
+        /// (x, y) in 0...1, y up: flat, P wave, the QRS spike, T wave, flat.
+        private static let points: [(CGFloat, CGFloat)] = [
+            (0, 0.5), (0.2, 0.5), (0.26, 0.6), (0.32, 0.5), (0.4, 0.5), (0.45, 0.38),
+            (0.52, 0.98), (0.59, 0.04), (0.64, 0.5), (0.73, 0.5), (0.8, 0.66), (0.87, 0.5), (1, 0.5),
+        ]
 
         override init(frame: NSRect) {
             super.init(frame: frame)
             wantsLayer = true
-            ring.fillColor = nil
-            ring.lineWidth = 1.5
-            ring.lineCap = .round
-            ring.strokeEnd = 0.7
-            layer?.addSublayer(ring)
+            trace.fillColor = nil
+            trace.lineWidth = 1.5
+            trace.lineCap = .round
+            trace.lineJoin = .round
+            trace.shadowOpacity = 0.9 // a soft glow, like a monitor screen
+            trace.shadowRadius = 2
+            trace.shadowOffset = .zero
+            layer?.addSublayer(trace)
         }
 
         required init?(coder: NSCoder) { fatalError("not used") }
 
-        func setSpinning(_ on: Bool) {
-            guard on != (ring.animation(forKey: "spin") != nil) else { return }
-            if on {
-                let spin = CABasicAnimation(keyPath: "transform.rotation.z")
-                spin.fromValue = 0
-                spin.toValue = -2 * Double.pi // clockwise
-                spin.duration = 2.4
-                spin.repeatCount = .infinity
-                ring.add(spin, forKey: "spin")
-            } else {
-                ring.removeAnimation(forKey: "spin")
-            }
+        func setBeating(_ on: Bool) {
+            guard on != (trace.animation(forKey: "beat") != nil) else { return }
+            guard on else { return trace.removeAnimation(forKey: "beat") }
+            let head = CAKeyframeAnimation(keyPath: "strokeEnd")
+            head.values = [0, 1, 1]
+            head.keyTimes = [0, 0.6, 1]
+            let tail = CAKeyframeAnimation(keyPath: "strokeStart")
+            tail.values = [0, 0, 1]
+            tail.keyTimes = [0, 0.3, 1]
+            let beat = CAAnimationGroup()
+            beat.animations = [head, tail]
+            beat.duration = 1.2
+            beat.repeatCount = .infinity
+            trace.add(beat, forKey: "beat")
         }
 
         override func layout() {
             super.layout()
-            ring.frame = bounds
-            ring.path = CGPath(ellipseIn: bounds.insetBy(dx: 1, dy: 1), transform: nil)
+            trace.frame = bounds
+            let path = CGMutablePath()
+            path.addLines(between: Self.points.map { CGPoint(x: $0.0 * bounds.width, y: $0.1 * bounds.height) })
+            trace.path = path
         }
     }
 }

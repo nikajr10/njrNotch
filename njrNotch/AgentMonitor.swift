@@ -15,7 +15,6 @@ final class AgentMonitor {
     private(set) var sessions: [AgentSession] = []
     /// Session picked in the notch; nil = show the most urgent one.
     var selectedID: String?
-    private(set) var today: TokenUsage.Counts?
     /// Bumped on every finished task, so the closed notch can pulse.
     private(set) var finishCount = 0
     /// Held permission requests by session id, answered with Allow/Deny in the notch.
@@ -31,6 +30,7 @@ final class AgentMonitor {
         AgentListener.selfCheck()
         ClaudeCodeAdapter.selfCheck()
         TokenUsage.selfCheck()
+        Updater.selfCheck()
         #endif
         listener.start { [weak self] request, reply in
             guard let payload = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any] else {
@@ -116,10 +116,16 @@ final class AgentMonitor {
         switch event.kind {
         case .sessionStarted:
             session.status = .idle
-            session.startedAt = session.startedAt ?? .now // compacting fires SessionStart too
         case .promptSubmitted(let prompt):
+            if session.status == .idle || session.status == .done || session.taskStartedAt == nil {
+                session.taskStartedAt = .now // a prompt queued mid-task keeps the clock running
+            }
+            session.taskEndedAt = nil
             session.status = .working
-            session.task = Self.shorten(prompt)
+            // Claude Code also submits its own messages, e.g. <task-notification> when a background task ends.
+            if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<") {
+                session.task = Self.shorten(prompt)
+            }
             session.activity = "Thinking…"
             session.permissionRequest = nil
         case .toolStarted(let activity):
@@ -138,6 +144,7 @@ final class AgentMonitor {
             session.activity = nil
             session.permissionRequest = nil
             session.lastResult = summary.map(Self.shorten)
+            session.taskEndedAt = .now
             finishCount += 1
             Alerts.fire(.done, title: "\(agentName) finished · \(session.project)", body: session.lastResult ?? "Task finished")
             PopNotifier.shared.post(PopNote(kind: .done, title: "Done · \(session.project)",
@@ -180,7 +187,7 @@ final class AgentMonitor {
         return String(line.trimmingCharacters(in: .whitespaces).prefix(200))
     }
 
-    // MARK: - Tokens
+    // MARK: - Model and effort
 
     /// Transcripts can be many MB, so they are read off the main thread, at most every 10s mid-task.
     private func refreshUsage(sessionID: String?, force: Bool) {
@@ -189,17 +196,11 @@ final class AgentMonitor {
         let transcript = sessions.first { $0.id == sessionID }?.transcriptPath
         Task.detached(priority: .utility) {
             let info = transcript.map { TokenUsage.session(in: URL(fileURLWithPath: $0)) }
-            let todayCounts = TokenUsage.today()
+            guard let sessionID, let info else { return }
             await MainActor.run {
-                self.today = todayCounts
-                if let sessionID, let info {
-                    self.update(sessionID) {
-                        $0.tokens = info.counts
-                        $0.lastContext = info.lastContext ?? $0.lastContext
-                        $0.model = info.model ?? $0.model
-                        $0.effort = info.effort ?? $0.effort
-                        $0.startedAt = $0.startedAt ?? info.started
-                    }
+                self.update(sessionID) {
+                    $0.model = info.model ?? $0.model
+                    $0.effort = info.effort ?? $0.effort
                 }
             }
         }

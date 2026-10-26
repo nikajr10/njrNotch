@@ -33,7 +33,7 @@ struct NotchView: View {
                     .onHover { pop.isHovering = $0 }
                     .onTapGesture {
                         pop.dismiss()
-                        state.open(note.tab)
+                        if note.kind == .update { SettingsWindow.show(.updates) } else { state.open(note.tab) }
                     }
                     .transition(.move(edge: .top).combined(with: .opacity))
             }

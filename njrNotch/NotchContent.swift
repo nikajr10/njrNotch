@@ -163,7 +163,7 @@ private struct ClaudeCodeTab: View {
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         if ClaudeHooks.isInstalled {
-                            Label("No Claude Code session running", systemImage: AgentStatus.idle.symbol)
+                            Label("Claude Code isn't in use", systemImage: AgentStatus.idle.symbol)
                                 .foregroundStyle(.secondary)
                         } else {
                             // Without njrNotch's hooks no session ever reaches the notch.
@@ -173,7 +173,6 @@ private struct ClaudeCodeTab: View {
                                 .buttonStyle(.plain)
                                 .foregroundStyle(prefs.claudeAccent)
                         }
-                        TokenBlock(session: nil, today: agent.today)
                     }
                     .font(.notch(12))
                 }

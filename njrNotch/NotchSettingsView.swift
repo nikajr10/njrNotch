@@ -112,6 +112,7 @@ struct NotchSettingsView: View {
         case .claudeCode: ClaudeCodeSettings()
         case .notifications: NotificationSettings()
         case .sounds: SoundSettings()
+        case .updates: UpdatesSettings()
         case .general: GeneralSettings()
         case .about: AboutSettings()
         }

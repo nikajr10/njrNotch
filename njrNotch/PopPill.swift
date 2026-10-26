@@ -58,6 +58,7 @@ struct PopPill: View {
         case .done: symbol(AgentStatus.done.symbol, AgentStatus.done.color)
         case .permission: symbol(AgentStatus.needsPermission.symbol, AgentStatus.needsPermission.color)
         case .sessionEnded: symbol("power.circle.fill", .gray)
+        case .update: symbol("arrow.down.circle.fill", .blue)
         }
     }
 
